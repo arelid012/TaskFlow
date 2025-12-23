@@ -9,8 +9,11 @@ class ProjectController extends Controller
 {
     public function index()
     {
-        $projects = auth()->user()->projects;
-        return view('projects.index', compact('projects'));
+        $user = auth()->user();
+
+        $projects = $user->projects
+            ->merge($user->assignedProjects)
+            ->unique('id');
     }
 
     public function create()
