@@ -15,14 +15,16 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    Route::middleware(['role:admin,manager'])->group(function () {
-        Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
-        Route::get('/projects/create', [ProjectController::class, 'create'])->name('projects.create');
-        Route::post('/projects', [ProjectController::class, 'store'])->name('projects.store');
+    // Projects (ALL authenticated users)
+    Route::resource('projects', ProjectController::class);
+
+    // Admin-only routes
+    Route::middleware(['role:admin'])->group(function () {
         Route::get('/admin', function () {
             return view('admin.dashboard');
         })->name('admin.dashboard');

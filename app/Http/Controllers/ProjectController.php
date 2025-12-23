@@ -7,13 +7,22 @@ use Illuminate\Http\Request;
 
 class ProjectController extends Controller
 {
+
+    
     public function index()
     {
         $user = auth()->user();
 
-        $projects = $user->projects
-            ->merge($user->assignedProjects)
-            ->unique('id');
+        if ($user->role === 'admin' || $user->role === 'manager') {
+            $projects = Project::all();
+        } else {
+            $projects = $user->projects
+                ->merge($user->assignedProjects)
+                ->unique('id');
+        }
+
+        return view('projects.index', compact('projects'));
+
     }
 
     public function create()
@@ -33,6 +42,34 @@ class ProjectController extends Controller
             'description' => $request->description,
             'created_by' => auth()->id(),
         ]);
+
+        return redirect()->route('projects.index');
+    }
+
+    public function edit(Project $project)
+    {
+        $this->authorize('update', $project);
+        return view('projects.edit', compact('project'));
+    }
+
+    public function update(Request $request, Project $project)
+    {
+        $this->authorize('update', $project);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        $project->update($validated);
+
+        return redirect()->route('projects.index');
+    }
+
+    public function destroy(Project $project)
+    {
+        $this->authorize('delete', $project);
+        $project->delete();
 
         return redirect()->route('projects.index');
     }
