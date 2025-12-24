@@ -73,4 +73,13 @@ class ProjectController extends Controller
 
         return redirect()->route('projects.index');
     }
+
+    public function show(Project $project)
+    {
+        return [
+            'project' => $project,
+            'progress' => $project->progress(),
+        ];
+    }
+
 }

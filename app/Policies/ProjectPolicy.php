@@ -28,6 +28,10 @@ class ProjectPolicy
      */
     public function view(User $user, Project $project): bool
     {
-        return true;
+        if (in_array($user->role, ['admin', 'manager'])) {
+            return true;
+        }
+
+        return $project->users->contains($user->id);
     }
 }

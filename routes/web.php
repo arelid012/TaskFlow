@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\TaskController;
 
 
 
@@ -29,6 +30,15 @@ Route::middleware('auth')->group(function () {
             return view('admin.dashboard');
         })->name('admin.dashboard');
     });
+
+    // task controller routes
+    Route::get('/projects/{project}/tasks', [TaskController::class, 'index']);
+    Route::post('/projects/{project}/tasks', [TaskController::class, 'store']);
+    Route::patch('/tasks/{task}', [TaskController::class, 'update']);
+
+    Route::patch('/tasks/{task}', [TaskController::class, 'update']);
+    Route::patch('/tasks/{task}/assign', [TaskController::class, 'assign']);
+    Route::get('/projects/{project}/kanban', [TaskController::class, 'kanban']);
 });
 
 

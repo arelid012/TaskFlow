@@ -30,4 +30,22 @@ class Project extends Model
                     ->withPivot('role')
                     ->withTimestamps();
     }
+
+    public function tasks()
+    {
+        return $this->hasMany(Task::class);
+    }
+
+    public function progress(): int
+    {
+        $total = $this->tasks()->count();
+
+        if ($total === 0) {
+            return 0;
+        }
+
+        $done = $this->tasks()->where('status', 'done')->count();
+
+        return (int) round(($done / $total) * 100);
+    }
 }
