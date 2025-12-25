@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\ProjectActivityController;
 
 
 
@@ -39,6 +40,9 @@ Route::middleware('auth')->group(function () {
     Route::patch('/tasks/{task}', [TaskController::class, 'update']);
     Route::patch('/tasks/{task}/assign', [TaskController::class, 'assign']);
     Route::get('/projects/{project}/kanban', [TaskController::class, 'kanban']);
+
+    // Project Activity
+    Route::get('/projects/{project}/activity', [ProjectActivityController::class, 'index']);
 });
 
 
