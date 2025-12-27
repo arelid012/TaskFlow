@@ -41,9 +41,19 @@ Route::middleware('auth')->group(function () {
     Route::patch('/tasks/{task}/assign', [TaskController::class, 'assign']);
     Route::get('/projects/{project}/kanban', [TaskController::class, 'kanban']);
 
-    // Project Activity
-    Route::get('/projects/{project}/activity', [ProjectActivityController::class, 'index']);
-});
+
+    // Activity page (Blade)
+    Route::get(
+        '/projects/{project}/activity',
+        [ProjectActivityController::class, 'page']
+    )->name('projects.activity.page');
+
+    // Activity data (JSON)
+    Route::get(
+        '/projects/{project}/activity/logs',
+        [ProjectActivityController::class, 'index']
+    )->middleware('auth');
+    });
 
 
 
