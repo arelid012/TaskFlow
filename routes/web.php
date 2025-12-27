@@ -40,6 +40,9 @@ Route::middleware('auth')->group(function () {
     Route::patch('/tasks/{task}', [TaskController::class, 'update']);
     Route::patch('/tasks/{task}/assign', [TaskController::class, 'assign']);
     Route::get('/projects/{project}/kanban', [TaskController::class, 'kanban']);
+    Route::post('/projects/{project}/tasks', [TaskController::class, 'store'])
+    ->middleware('auth')
+    ->name('projects.tasks.store');
 
 
     // Activity page (Blade)

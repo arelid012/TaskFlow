@@ -55,19 +55,7 @@ class ProjectActivityController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return response()->json(
-            ActivityLogResource::collection($activities)
-                ->additional([
-                    'project_id' => $project->id,
-                    'filters' => $request->only([
-                        'action',
-                        'user_id',
-                        'task_id',
-                        'from',
-                        'to',
-                    ]),
-                ])
-        );
+        return ActivityLogResource::collection($activities);
     }
 }
 

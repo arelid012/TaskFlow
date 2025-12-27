@@ -3,6 +3,25 @@
         x-data="activityLog({{ $project->id }})"
         x-init="fetchLogs()">
 
+        <form method="POST"
+            action="{{ route('projects.tasks.store', $project) }}"
+            class="flex gap-2 mb-6">
+            @csrf
+
+            <input
+                type="text"
+                name="title"
+                placeholder="New task title"
+                class="flex-1 border rounded px-3 py-2"
+                required
+            >
+
+            <button
+                class="px-4 py-2 bg-indigo-600 text-white rounded">
+                Add
+            </button>
+        </form>
+
         <h1 class="text-2xl font-semibold tracking-tight">
             <p class="text-sm text-gray-400">
                 Project activity timeline

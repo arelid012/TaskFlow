@@ -7,6 +7,7 @@ use App\Models\Task;
 use Illuminate\Http\Request;
 use App\Notifications\TaskUpdated;
 use App\Services\ActivityLogger;
+use App\Models\ActivityLog;
 
 
 class TaskController extends Controller
@@ -29,11 +30,21 @@ class TaskController extends Controller
             'status' => 'in:todo,doing,done',
         ]);
 
-        return $project->tasks()->create([
+        $task = $project->tasks()->create([
             'title' => $request->title,
             'assigned_to' => $request->assigned_to,
             'status' => $request->status ?? 'todo',
         ]);
+
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'project_id' => $project->id,
+            'task_id' => $task->id,
+            'action' => 'task_created',
+            'description' => 'Task created',
+        ]);
+
+        return back()->with('success', 'Task created');
     }
 
     public function update(Request $request, Task $task)

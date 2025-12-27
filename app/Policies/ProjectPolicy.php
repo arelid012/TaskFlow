@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Models\Project;
 use App\Models\User;
 
+
 class ProjectPolicy
 {
     /**
@@ -28,7 +29,14 @@ class ProjectPolicy
      */
     public function view(User $user, Project $project): bool
     {
-        return $user->id === $project->created_by
-            || in_array($user->role, ['admin', 'manager']);
+        if (in_array($user->role, ['admin', 'manager'])) {
+        return true;
     }
+
+    return $project->members()
+        ->where('users.id', $user->id)
+        ->exists();
+    }
+
+    
 }
