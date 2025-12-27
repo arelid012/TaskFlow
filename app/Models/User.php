@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class User extends Authenticatable
 {
@@ -64,13 +63,6 @@ class User extends Authenticatable
     public function projects(): HasMany
     {
         return $this->hasMany(Project::class, 'created_by');
-    }
-
-    public function assignedProjects(): BelongsToMany
-    {
-        return $this->belongsToMany(Project::class)
-                    ->withPivot('role')
-                    ->withTimestamps();
     }
 
     public function assignedTasks()
