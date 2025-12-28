@@ -173,6 +173,16 @@
                     return map[current] ?? [];
                 },
 
+                nextPage() {
+                    if (!this.pagination.next) return;
+                    this.fetchLogs(this.pagination.next);
+                },
+
+                prevPage() {
+                    if (!this.pagination.prev) return;
+                    this.fetchLogs(this.pagination.prev);
+                },
+
                 async fetchLogs(url = null) {
                     this.loading = true;
 
