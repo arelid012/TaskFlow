@@ -102,15 +102,23 @@
                     </template>
 
                     <!-- Status dropdown -->
-                    <template x-if="log.is_latest && log.task">
+                    <template x-if="log.is_latest && log.task?.status">
                         <select
                             class="border rounded px-2 py-1 text-xs bg-white"
-                            :value="log.task.status"
                             @change="updateStatus(log.task.id, $event.target.value)"
                         >
-                            <option value="todo">Todo</option>
-                            <option value="doing">Doing</option>
-                            <option value="done">Done</option>
+                            <!-- current status (read-only) -->
+                            <option disabled selected>
+                                Current: <span x-text="log.task.status"></span>
+                            </option>
+
+                            <!-- allowed transitions only -->
+                            <template
+                                x-for="option in allowedNextStatuses(log.task.status)"
+                                :key="option.value"
+                            >
+                                <option :value="option.value" x-text="option.label"></option>
+                            </template>
                         </select>
                     </template>
 
@@ -139,78 +147,90 @@
 
     <!-- Alpine logic -->
     <script>
-            function activityLog(projectId) {
-        return {
-            logs: [],
-            loading: false,
-            filters: { action: '' },
-            pagination: {
-                next: null,
-                prev: null
-            },
-            newTaskTitle: '',
+        function activityLog(projectId) {
+            return {
+                logs: [],
+                loading: false,
+                filters: { action: '' },
+                pagination: {
+                    next: null,
+                    prev: null
+                },
+                newTaskTitle: '',
 
-            async fetchLogs(url = null) {
-                this.loading = true;
+                // ✅ ADD IT HERE (top-level)
+                allowedNextStatuses(current) {
+                    const map = {
+                        todo: [
+                            { value: 'doing', label: 'Move to Doing' }
+                        ],
+                        doing: [
+                            { value: 'done', label: 'Mark as Done' }
+                        ],
+                        done: []
+                    };
 
-                const endpoint = url ??
-                    `/projects/${projectId}/activity/logs?action=${this.filters.action}`;
+                    return map[current] ?? [];
+                },
 
-                const response = await fetch(endpoint, {
-                    headers: { 'Accept': 'application/json' }
-                });
+                async fetchLogs(url = null) {
+                    this.loading = true;
 
-                const data = await response.json();
+                    const endpoint =
+                        url ?? `/projects/${projectId}/activity/logs?action=${this.filters.action}`;
 
-                this.logs = data.data ?? [];
+                    const response = await fetch(endpoint, {
+                        headers: { 'Accept': 'application/json' }
+                    });
 
-                this.pagination.next = data.links?.next ?? null;
-                this.pagination.prev = data.links?.prev ?? null;
+                    const data = await response.json();
 
-                this.loading = false;
-            },
+                    this.logs = data.data ?? [];
+                    this.pagination.next = data.links?.next ?? null;
+                    this.pagination.prev = data.links?.prev ?? null;
 
-            async createTask() {
-                if (!this.newTaskTitle.trim()) return;
+                    this.loading = false;
+                },
 
-                await fetch(`/projects/${projectId}/tasks`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document
-                            .querySelector('meta[name="csrf-token"]')
-                            .content
-                    },
-                    body: JSON.stringify({
-                        title: this.newTaskTitle
-                    })
-                });
+                async createTask() {
+                    if (!this.newTaskTitle.trim()) return;
 
-                this.newTaskTitle = '';
+                    await fetch(`/projects/${projectId}/tasks`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document
+                                .querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify({
+                            title: this.newTaskTitle
+                        })
+                    });
 
-                // 🔥 THIS is the magic
-                this.$dispatch('task-created');
-                
-            },
+                    this.newTaskTitle = '';
 
-            async updateStatus(taskId, status) {
-                await fetch(`/tasks/${taskId}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document
-                            .querySelector('meta[name="csrf-token"]').content
-                    },
-                    body: JSON.stringify({ status })
-                });
+                    // 🔥 refresh timeline
+                    this.$dispatch('task-created');
+                },
 
-                // 🔥 refresh activity
-                this.$dispatch('task-created');
+                async updateStatus(taskId, status) {
+                    await fetch(`/tasks/${taskId}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document
+                                .querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify({ status })
+                    });
+
+                    // 🔥 refresh timeline
+                    this.$dispatch('task-created');
+                }
             }
-            
         }
-    }
-    </script>
+        </script>
+
 </x-app-layout>
