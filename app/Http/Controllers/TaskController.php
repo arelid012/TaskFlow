@@ -49,37 +49,52 @@ class TaskController extends Controller
 
     public function update(Request $request, Task $task)
     {
-
         $this->authorize('update', $task);
 
         $request->validate([
             'status' => 'required|in:todo,doing,done',
         ]);
 
-        $task->update([
-            'status' => $request->status
-        ]);
+        $oldStatus = $task->status;
+        $newStatus = $request->status;
 
-        if ($task->status === 'done' && $task->assignee) {
-            $task->assignee->notify(
-                new TaskUpdated($task, 'completed')
-            );
-
-            ActivityLogger::log(
-            auth()->id(),
-            'completed',
-            'Completed task "' . $task->title . '"',
-            $task->project_id,
-            $task->id
-            );
-        }
-
-        if (!$this->validStatusTransition($task->status, $request->status)) {
+        // ✅ Validate BEFORE update
+        if (!$this->validStatusTransition($oldStatus, $newStatus)) {
             abort(422, 'Invalid status transition');
         }
 
+        // ✅ No-op protection
+        if ($oldStatus === $newStatus) {
+            return $task;
+        }
+
+        $task->update([
+            'status' => $newStatus
+        ]);
+
+        // ✅ Notify only on completion
+        if ($newStatus === 'done' && $task->assignee) {
+            $task->assignee->notify(
+                new TaskUpdated($task, 'completed')
+            );
+        }
+
+        // ✅ Log ALL status changes
+        ActivityLogger::log(
+            auth()->id(),
+            'task_status_changed',
+            "Changed status from {$oldStatus} to {$newStatus}",
+            $task->project_id,
+            $task->id,
+            [
+                'from' => $oldStatus,
+                'to'   => $newStatus
+            ]
+        );
+
         return $task;
     }
+
 
     public function assign(Request $request, Task $task)
     {

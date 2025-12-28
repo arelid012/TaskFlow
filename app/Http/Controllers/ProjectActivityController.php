@@ -27,7 +27,7 @@ class ProjectActivityController extends Controller
 
         $query = ActivityLog::with([
             'user:id,name',
-            'task:id,title'
+            'task:id,title,status'
         ])->where('project_id', $project->id);
 
         if ($request->filled('action')) {
@@ -54,6 +54,24 @@ class ProjectActivityController extends Controller
             ->latest()
             ->paginate(20)
             ->withQueryString();
+
+        $latestTaskLogs = ActivityLog::where('project_id', $project->id)
+            ->whereNotNull('task_id')
+            ->latest('created_at')
+            ->get()
+            ->unique('task_id')
+            ->pluck('id')
+            ->toArray();
+
+        $latestIdsOnPage = array_intersect(
+            $activities->pluck('id')->toArray(),
+            $latestTaskLogs
+        );
+
+        $activities->getCollection()->transform(function ($log) use ($latestIdsOnPage) {
+            $log->is_latest = in_array($log->id, $latestIdsOnPage);
+            return $log;
+        });
 
         return ActivityLogResource::collection($activities);
     }

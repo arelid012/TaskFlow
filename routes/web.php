@@ -45,18 +45,16 @@ Route::middleware('auth')->group(function () {
     ->name('projects.tasks.store');
 
 
-    // Activity page (Blade)
+    Route::get(
+        '/projects/{project}/activity/logs',
+        [ProjectActivityController::class, 'index']
+    )->name('projects.activity.index');
+
     Route::get(
         '/projects/{project}/activity',
         [ProjectActivityController::class, 'page']
     )->name('projects.activity.page');
-
-    // Activity data (JSON)
-    Route::get(
-        '/projects/{project}/activity/logs',
-        [ProjectActivityController::class, 'index']
-    )->middleware('auth');
-    });
+        });
 
 
 

@@ -35,7 +35,7 @@
                     class="border rounded px-3 py-2">
                 <option value="">All actions</option>
                 <option value="task_created">Task created</option>
-                <option value="task_completed">Task completed</option>
+                <option value="task_status_changed">Status changed</option>
             </select>
         </div>
 
@@ -56,10 +56,36 @@
         <ul class="space-y-3">
             <template x-for="log in logs" :key="log.id">
                 <li class="relative pl-4 border-l border-gray-700">
-                    <span class="absolute -left-1.5 top-2 h-3 w-3 rounded-full bg-indigo-500"></span>
-                    <div class="text-sm text-gray-700">
+                    <span
+                        class="absolute -left-1.5 top-2 h-3 w-3 rounded-full bg-indigo-500">
+                    </span>
+
+                    <div class="text-sm text-gray-700 flex items-center gap-2 flex-wrap">
                         <strong x-text="log.user?.name ?? 'System'"></strong>
-                        <span x-text="log.action.replace('_', ' ')"></span>
+
+                        <span
+                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                            :class="{
+                                'bg-indigo-100 text-indigo-800': log.action === 'task_created',
+                                'bg-green-100 text-green-800': log.action === 'task_completed',
+                                'bg-yellow-100 text-yellow-800': log.action === 'task_status_changed'
+                            }"
+                        >
+                            <template x-if="log.action === 'task_status_changed'">
+                                <span
+                                    x-show="log.meta?.from && log.meta?.to"
+                                    x-text="`status changed (${log.meta?.from} → ${log.meta?.to})`">
+                                </span>
+
+                                <span x-show="!log.meta">
+                                    status changed
+                                </span>
+                            </template>
+
+                            <template x-if="log.action !== 'task_status_changed'">
+                                <span x-text="log.action.replace('_', ' ')"></span>
+                            </template>
+                        </span>
 
                         <template x-if="log.task">
                             <span>
@@ -68,12 +94,32 @@
                         </template>
                     </div>
 
+                    <!-- Description (human-readable explanation) -->
+                    <template x-if="log.description">
+                        <div class="ml-6 text-sm text-gray-600">
+                            <span x-text="log.description"></span>
+                        </div>
+                    </template>
+
+                    <!-- Status dropdown -->
+                    <template x-if="log.is_latest && log.task">
+                        <select
+                            class="border rounded px-2 py-1 text-xs bg-white"
+                            :value="log.task.status"
+                            @change="updateStatus(log.task.id, $event.target.value)"
+                        >
+                            <option value="todo">Todo</option>
+                            <option value="doing">Doing</option>
+                            <option value="done">Done</option>
+                        </select>
+                    </template>
+
                     <div class="text-xs text-gray-400"
                         x-text="log.created_at">
                     </div>
                 </li>
             </template>
-        </ul> 
+        </ul>
 
         <!-- Pagination -->
         <div class="mt-6 flex gap-2">
@@ -146,13 +192,25 @@
                 // 🔥 THIS is the magic
                 this.$dispatch('task-created');
                 
+            },
+
+            async updateStatus(taskId, status) {
+                await fetch(`/tasks/${taskId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document
+                            .querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({ status })
+                });
+
+                // 🔥 refresh activity
+                this.$dispatch('task-created');
             }
             
         }
     }
-
-    
-
-
     </script>
 </x-app-layout>
