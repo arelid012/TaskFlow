@@ -1,16 +1,15 @@
 <x-app-layout>
     <div class="max-w-3xl mx-auto py-6 space-y-6"
         x-data="activityLog({{ $project->id }})"
-        x-init="fetchLogs()">
+        x-init="fetchLogs()"
+        @task-created.window="fetchLogs()">
 
-        <form method="POST"
-            action="{{ route('projects.tasks.store', $project) }}"
+        <form @submit.prevent="createTask"
             class="flex gap-2 mb-6">
-            @csrf
 
             <input
                 type="text"
-                name="title"
+                x-model="newTaskTitle"
                 placeholder="New task title"
                 class="flex-1 border rounded px-3 py-2"
                 required
@@ -74,7 +73,7 @@
                     </div>
                 </li>
             </template>
-        </ul>
+        </ul> 
 
         <!-- Pagination -->
         <div class="mt-6 flex gap-2">
@@ -103,6 +102,7 @@
                 next: null,
                 prev: null
             },
+            newTaskTitle: '',
 
             async fetchLogs(url = null) {
                 this.loading = true;
@@ -122,9 +122,36 @@
                 this.pagination.prev = data.links?.prev ?? null;
 
                 this.loading = false;
+            },
+
+            async createTask() {
+                if (!this.newTaskTitle.trim()) return;
+
+                await fetch(`/projects/${projectId}/tasks`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document
+                            .querySelector('meta[name="csrf-token"]')
+                            .content
+                    },
+                    body: JSON.stringify({
+                        title: this.newTaskTitle
+                    })
+                });
+
+                this.newTaskTitle = '';
+
+                // 🔥 THIS is the magic
+                this.$dispatch('task-created');
+                
             }
+            
         }
     }
+
+    
 
 
     </script>
