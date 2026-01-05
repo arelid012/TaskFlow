@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ActivityLogResource;
+use App\Models\User;
 
 class ProjectActivityController extends Controller
 {
@@ -16,9 +17,14 @@ class ProjectActivityController extends Controller
     {
         $this->authorize('view', $project);
 
-        return view('projects.activity', compact('project'));
+        // Load users so $project->users is available in Blade
+        $project->load('users');
+
+        // Load all users for assign dropdown
+        $users = User::all();
+
+        return view('projects.activity', compact('project', 'users'));
     }
-   
 
 
     public function index(Request $request, Project $project)

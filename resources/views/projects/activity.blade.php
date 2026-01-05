@@ -1,3 +1,10 @@
+@php
+    $projectUsers = $project->users->map(fn ($u) => [
+        'id' => $u->id,
+        'name' => $u->name,
+    ]);
+@endphp
+
 <x-app-layout>
     <div class="max-w-3xl mx-auto py-6 space-y-6"
         x-data="activityLog({{ $project->id }})"
@@ -101,25 +108,48 @@
                         </div>
                     </template>
 
-                    <!-- Status dropdown -->
-                    <template x-if="log.is_latest && log.task?.status">
-                        <select
-                            class="border rounded px-2 py-1 text-xs bg-white"
-                            @change="updateStatus(log.task.id, $event.target.value)"
-                        >
-                            <!-- current status (read-only) -->
-                            <option disabled selected>
-                                Current: <span x-text="log.task.status"></span>
-                            </option>
+                    <!-- assignment & Status dropdown -->
+                    <template x-if="log.is_latest && log.task">
+                        <div class="flex items-center gap-2 mt-1">
 
-                            <!-- allowed transitions only -->
-                            <template
-                                x-for="option in allowedNextStatuses(log.task.status)"
-                                :key="option.value"
-                            >
-                                <option :value="option.value" x-text="option.label"></option>
+                            <!-- Status -->
+                            <template x-if="log.task.status">
+                                <select
+                                    class="border rounded px-2 py-1 text-xs bg-white"
+                                    @change="updateStatus(log.task.id, $event.target.value)"
+                                >
+                                    <option disabled selected>
+                                        Current: <span x-text="log.task.status"></span>
+                                    </option>
+
+                                    <template
+                                        x-for="option in allowedNextStatuses(log.task.status)"
+                                        :key="option.value"
+                                    >
+                                        <option :value="option.value" x-text="option.label"></option>
+                                    </template>
+                                </select>
                             </template>
-                        </select>
+
+                            <!-- Assignment -->
+                            @can('assign', App\Models\Task::class)
+                            <select
+                                class="border rounded px-2 py-1 text-xs bg-white"
+                                @change="assignTask(log.task.id, $event.target.value)"
+                            >
+                                <option value="">Unassigned</option>
+
+                                <template x-for="user in {{ $projectUsers->toJson() }}" :key="user.id">
+                                    <option
+                                        :value="user.id"
+                                        x-text="user.name"
+                                        :selected="log.task.assigned_to === user.id"
+                                    ></option>
+                                </template>
+                            </select>
+                            @endcan
+
+                        </div>
                     </template>
 
                     <div class="text-xs text-gray-400"
@@ -237,6 +267,21 @@
                     });
 
                     // 🔥 refresh timeline
+                    this.$dispatch('task-created');
+                },
+
+                async assignTask(taskId, userId) {
+                    await fetch(`/tasks/${taskId}/assign`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document
+                                .querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify({ assigned_to: userId })
+                    });
+
                     this.$dispatch('task-created');
                 }
             }

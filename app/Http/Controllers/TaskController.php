@@ -98,33 +98,41 @@ class TaskController extends Controller
 
     public function assign(Request $request, Task $task)
     {
-        if ($task->assigned_to == $request->assigned_to) {
-        return response()->json(['message' => 'Already assigned'], 200);
-        }
-
-        $this->authorize('assign', Task::class);
+        $this->authorize('assign', $task);
 
         $request->validate([
-            'assigned_to' => 'required|exists:users,id'
+            'assigned_to' => 'required|exists:users,id',
         ]);
+
+        $oldAssignee = $task->assigned_to;
 
         $task->update([
-            'assigned_to' => $request->assigned_to
+            'assigned_to' => $request->assigned_to,
         ]);
 
-        $task->assignee->notify(
-            new TaskUpdated($task, 'assigned')
-        );
+        $task->load('assignee');
 
-        ActivityLogger::log(
-        auth()->id(),
-        'assigned',
-        'Assigned task "' . $task->title . '"',
-        $task->project_id,
-        $task->id
-        );
+        if ($oldAssignee) {
+            $oldName = User::find($oldAssignee)?->name;
 
-        return $task;
+            ActivityLogger::log(
+                auth()->id(),
+                'task_reassigned',
+                "Task reassigned from {$oldName} to {$task->assignee->name}",
+                $task->project_id,
+                $task->id
+            );
+        } else {
+            ActivityLogger::log(
+                auth()->id(),
+                'task_assigned',
+                "Task assigned to {$task->assignee->name}",
+                $task->project_id,
+                $task->id
+            );
+        }
+
+        return back();
     }
 
     private function validStatusTransition(string $from, string $to): bool
