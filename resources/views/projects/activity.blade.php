@@ -7,7 +7,10 @@
 
 <x-app-layout>
     <div class="max-w-3xl mx-auto py-6 space-y-6"
-        x-data="activityLog({{ $project->id }})"
+        x-data="activityLog({
+        projectId: {{ $project->id }},
+        users: JSON.parse('{{ $projectUsers->toJson() }}')
+        })"
         x-init="fetchLogs()"
         @task-created.window="fetchLogs()">
 
@@ -136,15 +139,12 @@
                             <select
                                 class="border rounded px-2 py-1 text-xs bg-white"
                                 @change="assignTask(log.task.id, $event.target.value)"
+                                x-model="log.task.assigned_to"
                             >
                                 <option value="">Unassigned</option>
 
-                                <template x-for="user in {{ $projectUsers->toJson() }}" :key="user.id">
-                                    <option
-                                        :value="user.id"
-                                        x-text="user.name"
-                                        :selected="log.task.assigned_to === user.id"
-                                    ></option>
+                                <template x-for="user in users" :key="user.id">
+                                    <option :value="user.id" x-text="user.name"></option>
                                 </template>
                             </select>
                             @endcan
@@ -175,117 +175,5 @@
         </div>
     </div>
 
-    <!-- Alpine logic -->
-    <script>
-        function activityLog(projectId) {
-            return {
-                logs: [],
-                loading: false,
-                filters: { action: '' },
-                pagination: {
-                    next: null,
-                    prev: null
-                },
-                newTaskTitle: '',
-
-                // ✅ ADD IT HERE (top-level)
-                allowedNextStatuses(current) {
-                    const map = {
-                        todo: [
-                            { value: 'doing', label: 'Move to Doing' }
-                        ],
-                        doing: [
-                            { value: 'done', label: 'Mark as Done' }
-                        ],
-                        done: []
-                    };
-
-                    return map[current] ?? [];
-                },
-
-                nextPage() {
-                    if (!this.pagination.next) return;
-                    this.fetchLogs(this.pagination.next);
-                },
-
-                prevPage() {
-                    if (!this.pagination.prev) return;
-                    this.fetchLogs(this.pagination.prev);
-                },
-
-                async fetchLogs(url = null) {
-                    this.loading = true;
-
-                    const endpoint =
-                        url ?? `/projects/${projectId}/activity/logs?action=${this.filters.action}`;
-
-                    const response = await fetch(endpoint, {
-                        headers: { 'Accept': 'application/json' }
-                    });
-
-                    const data = await response.json();
-
-                    this.logs = data.data ?? [];
-                    this.pagination.next = data.links?.next ?? null;
-                    this.pagination.prev = data.links?.prev ?? null;
-
-                    this.loading = false;
-                },
-
-                async createTask() {
-                    if (!this.newTaskTitle.trim()) return;
-
-                    await fetch(`/projects/${projectId}/tasks`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document
-                                .querySelector('meta[name="csrf-token"]').content
-                        },
-                        body: JSON.stringify({
-                            title: this.newTaskTitle
-                        })
-                    });
-
-                    this.newTaskTitle = '';
-
-                    // 🔥 refresh timeline
-                    this.$dispatch('task-created');
-                },
-
-                async updateStatus(taskId, status) {
-                    await fetch(`/tasks/${taskId}`, {
-                        method: 'PATCH',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document
-                                .querySelector('meta[name="csrf-token"]').content
-                        },
-                        body: JSON.stringify({ status })
-                    });
-
-                    // 🔥 refresh timeline
-                    this.$dispatch('task-created');
-                },
-
-                async assignTask(taskId, userId) {
-                    await fetch(`/tasks/${taskId}/assign`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document
-                                .querySelector('meta[name="csrf-token"]').content
-                        },
-                        body: JSON.stringify({ assigned_to: userId })
-                    });
-
-                    this.$dispatch('task-created');
-                }
-            }
-        }
-        </script>
 
 </x-app-layout>

@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use App\Notifications\TaskUpdated;
 use App\Services\ActivityLogger;
 use App\Models\ActivityLog;
-
+use App\Models\User;
 
 class TaskController extends Controller
 {
@@ -101,18 +101,18 @@ class TaskController extends Controller
         $this->authorize('assign', $task);
 
         $request->validate([
-            'assigned_to' => 'required|exists:users,id',
+            'assigned_to' => 'nullable|exists:users,id',
         ]);
 
         $oldAssignee = $task->assigned_to;
 
         $task->update([
-            'assigned_to' => $request->assigned_to,
+            'assigned_to' => $request->assigned_to ?: null,
         ]);
 
         $task->load('assignee');
 
-        if ($oldAssignee) {
+        if ($oldAssignee && $request->assigned_to) {
             $oldName = User::find($oldAssignee)?->name;
 
             ActivityLogger::log(
@@ -122,7 +122,7 @@ class TaskController extends Controller
                 $task->project_id,
                 $task->id
             );
-        } else {
+        } elseif ($request->assigned_to) {
             ActivityLogger::log(
                 auth()->id(),
                 'task_assigned',
@@ -132,7 +132,10 @@ class TaskController extends Controller
             );
         }
 
-        return back();
+        return response()->json([
+            'success' => true,
+            'assigned_to' => $task->assigned_to,
+        ]);
     }
 
     private function validStatusTransition(string $from, string $to): bool

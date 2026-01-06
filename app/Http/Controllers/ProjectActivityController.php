@@ -17,11 +17,7 @@ class ProjectActivityController extends Controller
     {
         $this->authorize('view', $project);
 
-        // Load users so $project->users is available in Blade
-        $project->load('users');
-
-        // Load all users for assign dropdown
-        $users = User::all();
+        $users = User::select('id', 'name')->get();
 
         return view('projects.activity', compact('project', 'users'));
     }
