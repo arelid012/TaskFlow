@@ -1,5 +1,5 @@
 @php
-    $projectUsers = $project->users->map(fn ($u) => [
+    $projectUsers = $users->map(fn ($u) => [
         'id' => $u->id,
         'name' => $u->name,
     ]);
