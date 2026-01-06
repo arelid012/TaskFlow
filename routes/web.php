@@ -58,6 +58,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/projects/{project}/activity', [ProjectActivityController::class, 'page'])
         ->name('projects.activity.page');
+
+    
 });
 
 

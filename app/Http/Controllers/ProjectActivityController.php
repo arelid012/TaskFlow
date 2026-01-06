@@ -29,7 +29,7 @@ class ProjectActivityController extends Controller
 
         $query = ActivityLog::with([
             'user:id,name',
-            'task:id,title,status'
+            'task:id,title,status,assigned_to'
         ])->where('project_id', $project->id);
 
         if ($request->filled('action')) {

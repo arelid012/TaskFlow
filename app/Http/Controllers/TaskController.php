@@ -106,8 +106,12 @@ class TaskController extends Controller
 
         $oldAssignee = $task->assigned_to;
 
+        // Convert empty string to null
+        $assignedTo = $request->filled('assigned_to') ? $request->assigned_to : null;
+
+        // ✅ FIX: Use $assignedTo variable (not $request->assigned_to)
         $task->update([
-            'assigned_to' => $request->assigned_to ?: null,
+            'assigned_to' => $assignedTo,
         ]);
 
         $task->load('assignee');
@@ -130,11 +134,22 @@ class TaskController extends Controller
                 $task->project_id,
                 $task->id
             );
+        } elseif ($oldAssignee && !$request->assigned_to) {
+            // Handle unassignment
+            $oldName = User::find($oldAssignee)?->name;
+            ActivityLogger::log(
+                auth()->id(),
+                'task_unassigned',
+                "Task unassigned from {$oldName}",
+                $task->project_id,
+                $task->id
+            );
         }
 
         return response()->json([
             'success' => true,
-            'assigned_to' => $task->assigned_to,
+            'assigned_to' => $assignedTo, // ✅ Use $assignedTo here too
+            'task_id' => $task->id,
         ]);
     }
 

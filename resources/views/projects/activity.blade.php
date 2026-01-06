@@ -138,11 +138,10 @@
                             @can('assign', App\Models\Task::class)
                             <select
                                 class="border rounded px-2 py-1 text-xs bg-white"
-                                @change="assignTask(log.task.id, $event.target.value)"
+                                @change.debounce.300ms="assignTask(log.task.id, $event.target.value)"
                                 x-model="log.task.assigned_to"
                             >
                                 <option value="">Unassigned</option>
-
                                 <template x-for="user in users" :key="user.id">
                                     <option :value="user.id" x-text="user.name"></option>
                                 </template>
