@@ -12,6 +12,11 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('/test-logging', function() {
+    \Illuminate\Support\Facades\Log::info('TEST LOG MESSAGE - If you see this, logging works!');
+    return "Check storage/logs/laravel.log";
+});
+
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');

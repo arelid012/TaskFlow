@@ -9,6 +9,7 @@ use App\Notifications\TaskUpdated;
 use App\Services\ActivityLogger;
 use App\Models\ActivityLog;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 
 class TaskController extends Controller
 {
@@ -36,6 +37,11 @@ class TaskController extends Controller
             'status' => $request->status ?? 'todo',
             'due_date' => $request->due_date, // Add due_date
         ]);
+
+        // ✅ ADD NOTIFICATION HERE
+        if ($task->assignee && $task->assignee->id != auth()->id()) {
+            $task->assignee->notify(new TaskUpdated($task, 'assigned'));
+        }
 
         ActivityLog::create([
             'user_id' => auth()->id(),
@@ -104,12 +110,12 @@ class TaskController extends Controller
             );
         }
 
-        // ✅ Notify only on completion
-        if ($newStatus === 'done' && $task->assignee) {
-            $task->assignee->notify(
-                new TaskUpdated($task, 'completed')
-            );
-        }
+        // ✅ Notify on ANY status change
+    if ($newStatus !== $oldStatus && $task->assignee && $task->assignee->id != auth()->id()) {
+        $eventType = $newStatus === 'done' ? 'completed' : 'status_changed';
+        $task->assignee->notify(new TaskUpdated($task, $eventType));
+    }
+
 
         // ✅ Log ALL status changes
         ActivityLogger::log(
@@ -129,61 +135,117 @@ class TaskController extends Controller
 
 
     public function assign(Request $request, Task $task)
-    {
-        $this->authorize('assign', $task);
+{
+    // Clear old logs and start fresh
+    Log::info("\n\n========== NEW ASSIGNMENT REQUEST ==========");
+    Log::info('Task ID:', ['id' => $task->id, 'current_assignee' => $task->assigned_to]);
+    Log::info('Request data:', $request->all());
+    Log::info('Auth user:', ['id' => auth()->id(), 'name' => auth()->user()->name]);
 
-        $request->validate([
-            'assigned_to' => 'nullable|exists:users,id',
+    $this->authorize('assign', $task);
+
+    $request->validate([
+        'assigned_to' => 'nullable|exists:users,id',
+    ]);
+
+    $oldAssignee = $task->assigned_to;
+    Log::info('Old assignee ID:', ['old' => $oldAssignee]);
+
+    $assignedTo = $request->filled('assigned_to') ? $request->assigned_to : null;
+    Log::info('New assignee ID:', ['new' => $assignedTo]);
+
+    $task->update(['assigned_to' => $assignedTo]);
+    Log::info('Task updated in database');
+
+    $task->load('assignee');
+    Log::info('Task after load:', [
+        'assigned_to' => $task->assigned_to,
+        'has_assignee' => !is_null($task->assignee),
+        'assignee_name' => $task->assignee ? $task->assignee->name : 'null',
+        'assignee_id' => $task->assignee ? $task->assignee->id : 'null'
+    ]);
+
+    // DEBUG: Which condition will trigger?
+    Log::info('Condition check:', [
+        'condition1' => $oldAssignee && $request->assigned_to,
+        'condition2' => $request->assigned_to,
+        'condition3' => $oldAssignee && !$request->assigned_to
+    ]);
+
+    if ($oldAssignee && $request->assigned_to) {
+        Log::info('✅ Entering CASE 1: Reassignment');
+        $oldName = User::find($oldAssignee)?->name;
+
+        ActivityLogger::log(
+            auth()->id(),
+            'task_reassigned',
+            "Task reassigned from {$oldName} to {$task->assignee->name}",
+            $task->project_id,
+            $task->id
+        );
+        
+        Log::info('Checking if should send notification in CASE 1:', [
+            'assignee_exists' => !is_null($task->assignee),
+            'assignee_id' => $task->assignee ? $task->assignee->id : 'null',
+            'auth_id' => auth()->id(),
+            'different_users' => $task->assignee && $task->assignee->id != auth()->id(),
+            'should_send' => $task->assignee && $task->assignee->id != auth()->id()
         ]);
-
-        $oldAssignee = $task->assigned_to;
-
-        // Convert empty string to null
-        $assignedTo = $request->filled('assigned_to') ? $request->assigned_to : null;
-
-        // ✅ FIX: Use $assignedTo variable (not $request->assigned_to)
-        $task->update([
-            'assigned_to' => $assignedTo,
-        ]);
-
-        $task->load('assignee');
-
-        if ($oldAssignee && $request->assigned_to) {
-            $oldName = User::find($oldAssignee)?->name;
-
-            ActivityLogger::log(
-                auth()->id(),
-                'task_reassigned',
-                "Task reassigned from {$oldName} to {$task->assignee->name}",
-                $task->project_id,
-                $task->id
-            );
-        } elseif ($request->assigned_to) {
-            ActivityLogger::log(
-                auth()->id(),
-                'task_assigned',
-                "Task assigned to {$task->assignee->name}",
-                $task->project_id,
-                $task->id
-            );
-        } elseif ($oldAssignee && !$request->assigned_to) {
-            // Handle unassignment
-            $oldName = User::find($oldAssignee)?->name;
-            ActivityLogger::log(
-                auth()->id(),
-                'task_unassigned',
-                "Task unassigned from {$oldName}",
-                $task->project_id,
-                $task->id
-            );
+        
+        if ($task->assignee && $task->assignee->id != auth()->id()) {
+            $task->assignee->notify(new \App\Notifications\TaskUpdated($task, 'assigned'));
+            Log::info('🎯 NOTIFICATION SENT in CASE 1 to: ' . $task->assignee->name);
+        } else {
+            Log::info('🚫 NOTIFICATION NOT SENT in CASE 1 - same user or no assignee');
         }
-
-        return response()->json([
-            'success' => true,
-            'assigned_to' => $assignedTo, // ✅ Use $assignedTo here too
-            'task_id' => $task->id,
+        
+    } elseif ($request->assigned_to) {
+        Log::info('✅ Entering CASE 2: New assignment');
+        ActivityLogger::log(
+            auth()->id(),
+            'task_assigned',
+            "Task assigned to {$task->assignee->name}",
+            $task->project_id,
+            $task->id
+        );
+        
+        Log::info('Checking if should send notification in CASE 2:', [
+            'assignee_exists' => !is_null($task->assignee),
+            'assignee_id' => $task->assignee ? $task->assignee->id : 'null',
+            'auth_id' => auth()->id(),
+            'different_users' => $task->assignee && $task->assignee->id != auth()->id(),
+            'should_send' => $task->assignee && $task->assignee->id != auth()->id()
         ]);
+        
+        if ($task->assignee && $task->assignee->id != auth()->id()) {
+            $task->assignee->notify(new \App\Notifications\TaskUpdated($task, 'assigned'));
+            Log::info('🎯 NOTIFICATION SENT in CASE 2 to: ' . $task->assignee->name);
+        } else {
+            Log::info('🚫 NOTIFICATION NOT SENT in CASE 2 - same user or no assignee');
+        }
+        
+    } elseif ($oldAssignee && !$request->assigned_to) {
+        Log::info('✅ Entering CASE 3: Unassignment');
+        $oldName = User::find($oldAssignee)?->name;
+        ActivityLogger::log(
+            auth()->id(),
+            'task_unassigned',
+            "Task unassigned from {$oldName}",
+            $task->project_id,
+            $task->id
+        );
+    } else {
+        Log::info('⚠️ No condition matched! This should not happen.');
     }
+
+    Log::info("========== END ASSIGNMENT REQUEST ==========\n");
+    
+    return response()->json([
+        'success' => true,
+        'assigned_to' => $assignedTo,
+        'task_id' => $task->id,
+    ]);
+}
 
     private function validStatusTransition(string $from, string $to): bool
     {

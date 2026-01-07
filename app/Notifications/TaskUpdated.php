@@ -7,7 +7,6 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-
 class TaskUpdated extends Notification
 {
     use Queueable;
@@ -34,13 +33,31 @@ class TaskUpdated extends Notification
         return ['database'];
     }
 
-    public function toDatabase($notifiable)
+    /**
+     * Get the array representation of the notification.
+     * (For database storage)
+     */
+    public function toArray($notifiable)
     {
         return [
             'task_id'    => $this->task->id,
             'project_id' => $this->task->project_id,
             'title'      => $this->task->title,
-            'type'       => $this->type, // assigned | completed
+            'type'       => $this->type, // assigned | completed | status_changed
+            'message'    => $this->getMessage(), // Optional: Add a readable message
         ];
+    }
+    
+    /**
+     * Optional: Create a readable message
+     */
+    protected function getMessage(): string
+    {
+        return match($this->type) {
+            'assigned' => "You've been assigned to task: '{$this->task->title}'",
+            'completed' => "Task '{$this->task->title}' has been completed!",
+            'status_changed' => "Task '{$this->task->title}' status updated",
+            default => "Task '{$this->task->title}' has been updated",
+        };
     }
 }
