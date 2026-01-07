@@ -21,6 +21,28 @@
         </form>
     </div>
 
+    {{-- Make alerts more prominent --}}
+    @if($overdueTasks > 0)
+        <div class="mb-6 p-4 bg-red-900/30 border-l-4 border-red-600 rounded-lg">
+            <div class="flex items-center gap-3">
+                <span class="text-xl">🔴</span>
+                <div>
+                    <p class="font-medium text-red-300">Overdue Tasks</p>
+                    <p class="text-sm text-red-400">You have {{ $overdueTasks }} task(s) past their due date</p>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if($dueSoonTasks > 0)
+        <div class="mb-6 p-4 bg-yellow-900/30 border border-yellow-700 rounded-lg">
+            <div class="flex items-center gap-2 text-yellow-300">
+                <span class="text-lg">🟡</span>
+                <span class="font-medium">You have {{ $dueSoonTasks }} task(s) due soon (within 2 days)</span>
+            </div>
+        </div>
+    @endif
+
     {{-- Empty State --}}
     @if($tasksByProject->isEmpty())
         <div class="bg-gray-800 border border-gray-700 rounded-lg p-6 text-center text-gray-400">
@@ -47,24 +69,44 @@
                     {{-- Tasks --}}
                     <ul class="space-y-3">
                         @foreach($tasks as $task)
+                            {{-- In your task list item --}}
                             <li class="flex items-center justify-between bg-gray-800 hover:bg-gray-750 transition rounded-lg p-4">
                                 <div>
                                     <p class="font-medium text-gray-100">
                                         {{ $task->title }}
                                     </p>
-
-                                    {{-- Status badge --}}
-                                    <span class="inline-block mt-1 text-xs px-2 py-1 rounded
-                                        @if($task->status === 'todo')
-                                            bg-gray-700 text-gray-300
-                                        @elseif($task->status === 'doing')
-                                            bg-blue-600/20 text-blue-400
-                                        @elseif($task->status === 'done')
-                                            bg-green-600/20 text-green-400
+                                    
+                                    <div class="flex items-center gap-3 mt-2">
+                                        {{-- Status badge --}}
+                                        <span class="inline-block text-xs px-2 py-1 rounded
+                                            @if($task->status === 'todo')
+                                                bg-gray-700 text-gray-300
+                                            @elseif($task->status === 'doing')
+                                                bg-blue-600/20 text-blue-400
+                                            @elseif($task->status === 'done')
+                                                bg-green-600/20 text-green-400
+                                            @endif
+                                        ">
+                                            {{ ucfirst($task->status) }}
+                                        </span>
+                                        
+                                        {{-- Due Date Indicator --}}
+                                        @if($task->due_date)
+                                            @php
+                                                $indicatorColor = match($task->status_indicator) {
+                                                    'completed' => 'bg-green-600/20 text-green-400 border border-green-700/30',
+                                                    'on_track' => 'bg-green-600/20 text-green-400 border border-green-700/30',
+                                                    'due_soon' => 'bg-yellow-600/20 text-yellow-400 border border-yellow-700/30',
+                                                    'overdue' => 'bg-red-600/20 text-red-400 border border-red-700/30',
+                                                    default => 'bg-gray-700 text-gray-300',
+                                                };
+                                            @endphp
+                                            <span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded {{ $indicatorColor }}">
+                                                {{ $task->status_indicator_icon }}
+                                                Due: {{ $task->due_date->format('M d') }}
+                                            </span>
                                         @endif
-                                    ">
-                                        {{ ucfirst($task->status) }}
-                                    </span>
+                                    </div>
                                 </div>
 
                                 <a
