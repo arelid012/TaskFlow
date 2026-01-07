@@ -16,13 +16,14 @@ class ProjectController extends Controller
         if ($user->role === 'admin' || $user->role === 'manager') {
             $projects = Project::all();
         } else {
-            $projects = $user->projects
-                ->merge($user->assignedProjects)
-                ->unique('id');
+            $projects = collect()
+                ->merge($user->projects ?? [])
+                ->merge($user->assignedProjects ?? [])
+                ->unique('id')
+                ->values();
         }
 
         return view('projects.index', compact('projects'));
-
     }
 
     public function create()
