@@ -6,6 +6,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\ProjectActivityController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\NotificationController;
 
 
 Route::get('/', function () {
@@ -63,6 +64,23 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/projects/{project}/activity', [ProjectActivityController::class, 'page'])
         ->name('projects.activity.page');
+
+
+    // Notifications
+    Route::get('/notifications', [NotificationController::class, 'index'])
+        ->name('notifications.index');
+        
+    Route::post('/notifications/{notification}/mark-as-read', [NotificationController::class, 'markAsRead'])
+        ->name('notifications.mark-as-read');
+        
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead'])
+        ->name('notifications.mark-all-read');
+        
+    Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy'])
+        ->name('notifications.destroy');
+        
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])
+        ->name('notifications.unread-count');
 
     
 });
