@@ -58,6 +58,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/tasks/{task}/assign', [TaskController::class, 'assign'])
         ->name('tasks.assign');
 
+    Route::post('/tasks/{task}/due-date', [TaskController::class, 'updateDueDate'])
+    ->name('tasks.update-due-date');
+
     // Project Activity
     Route::get('/projects/{project}/activity/logs', [ProjectActivityController::class, 'index'])
         ->name('projects.activity.index');

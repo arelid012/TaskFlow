@@ -192,20 +192,30 @@
                                         </span>
                                     </div>
                                     
-                                    <!-- Due Date Indicator -->
+                                    <!-- Due Date Indicator - CLICK TO EDIT -->
                                     <template x-if="log.task.due_date">
-                                        <span class="text-xs px-2 py-1 rounded flex items-center gap-1"
+                                        <button @click="editDueDate(log.task)"
+                                            class="text-xs px-2 py-1 rounded flex items-center gap-1 hover:opacity-80 transition-opacity"
                                             :class="{
                                                 'bg-red-500/20 text-red-400 border border-red-500/30': isTaskOverdue(log.task),
                                                 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30': isTaskDueSoon(log.task),
                                                 'bg-green-500/20 text-green-400 border border-green-500/30': log.task.status === 'done',
-                                                'bg-gray-700 text-gray-300 border border-gray-600': !isTaskOverdue(log.task) && !isTaskDueSoon(log.task) && log.task.status !== 'done'
+                                                'bg-blue-500/20 text-blue-400 border border-blue-500/30': !isTaskOverdue(log.task) && !isTaskDueSoon(log.task) && log.task.status !== 'done'
                                             }"
-                                            :title="'Due: ' + new Date(log.task.due_date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })"
+                                            :title="'Click to edit. Due: ' + new Date(log.task.due_date).toLocaleDateString()"
                                         >
                                             <span x-text="getTaskStatusIcon(log.task)"></span>
                                             <span x-text="formatDate(log.task.due_date)"></span>
-                                        </span>
+                                        </button>
+                                    </template>
+
+                                    <!-- Add Due Date Button (if no due date) -->
+                                    <template x-if="!log.task.due_date">
+                                        <button @click="addDueDate(log.task)"
+                                            class="text-xs px-2 py-1 rounded bg-gray-700 text-gray-400 hover:text-gray-300 hover:bg-gray-600 border border-gray-600"
+                                            title="Add due date">
+                                            + Add due date
+                                        </button>
                                     </template>
                                 </div>
                                 

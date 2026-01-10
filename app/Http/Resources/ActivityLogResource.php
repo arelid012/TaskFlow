@@ -24,6 +24,7 @@ class ActivityLogResource extends JsonResource
                 'title' => $this->task->title,
                 'status' => $this->task->status,
                 'assigned_to' => $this->task->assigned_to,
+                'due_date' => $this->task->due_date,
             ] : null,
 
             'is_latest' => $this->is_latest ?? false,

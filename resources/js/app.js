@@ -151,6 +151,76 @@ Alpine.data('activityLog', ({projectId, users}) => ({
         }
     },
 
+    // Add these functions to your activityLog component:
+    async editDueDate(task) {
+        // Get current date in YYYY-MM-DD format
+        const currentDate = task.due_date ? 
+            new Date(task.due_date).toISOString().split('T')[0] : 
+            new Date().toISOString().split('T')[0];
+        
+        // Ask user for new date
+        const newDate = prompt('Change due date (YYYY-MM-DD):\nLeave empty to remove due date.', currentDate);
+        
+        // If user cancelled (pressed Cancel)
+        if (newDate === null) return;
+        
+        // If user entered empty string (remove due date) or a valid date
+        const dueDateToSend = newDate === '' ? null : newDate;
+        
+        try {
+            const response = await fetch(`/tasks/${task.id}/due-date`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({ due_date: dueDateToSend })
+            });
+            
+            if (response.ok) {
+                // Refresh the activity log to show updated date
+                await this.fetchLogs();
+            } else {
+                const error = await response.json();
+                alert('Error: ' + (error.message || 'Failed to update due date'));
+            }
+        } catch (error) {
+            console.error('Error updating due date:', error);
+            alert('Failed to update due date. Please try again.');
+        }
+    },
+
+    async addDueDate(task) {
+        // Suggest tomorrow as default
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const defaultDate = tomorrow.toISOString().split('T')[0];
+        
+        const newDate = prompt('Set due date (YYYY-MM-DD):', defaultDate);
+        
+        if (!newDate) return; // User cancelled or entered empty
+        
+        try {
+            const response = await fetch(`/tasks/${task.id}/due-date`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({ due_date: newDate })
+            });
+            
+            if (response.ok) {
+                await this.fetchLogs();
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to set due date.');
+        }
+    },
+
     // Helper methods for task status indicators
     isTaskOverdue(task) {
         if (!task.due_date || task.status === 'done') return false;

@@ -133,6 +133,35 @@ class TaskController extends Controller
         return $task;
     }
 
+    public function updateDueDate(Request $request, Task $task)
+    {
+        // Use the same permission as task update
+        $this->authorize('update', $task);
+        
+        $request->validate([
+            'due_date' => 'nullable|date|after_or_equal:today',
+        ]);
+        
+        $oldDate = $task->due_date;
+        $task->update(['due_date' => $request->due_date]);
+        
+        // Log the change
+        ActivityLogger::log(
+            auth()->id(),
+            'task_due_date_changed',
+            "Due date " . 
+                ($oldDate ? 'changed from ' . $oldDate->format('M d, Y') : 'set to') . 
+                ($request->due_date ? ' ' . date('M d, Y', strtotime($request->due_date)) : ' removed'),
+            $task->project_id,
+            $task->id,
+            [
+                'from' => $oldDate,
+                'to'   => $request->due_date
+            ]
+        );
+        
+        return response()->json(['success' => true]);
+    }
 
     public function assign(Request $request, Task $task)
 {
