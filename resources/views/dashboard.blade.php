@@ -1,152 +1,185 @@
-<div class="max-w-6xl mx-auto px-6 py-8">
-
-
-
-
-    {{-- Header --}}
-    <div class="flex items-center justify-between mb-8">
-        <div>
-            <h2 class="text-2xl font-bold text-gray-100">My Tasks</h2>
-            <p class="text-sm text-gray-400">
-                Tasks assigned to you across all projects
-            </p>
-        </div>
-
-        {{-- Logout --}}
-        <form method="POST" action="{{ route('logout') }}">
-            @csrf
-            <button
-                type="submit"
-                class="text-sm text-red-400 hover:text-red-300 transition"
-            >
-                Log out
-            </button>
-        </form>
-
-        {{-- Add this to your navbar --}}
-        @auth
-            <div class="relative">
-                <a href="{{ route('notifications.index') }}" 
-                class="p-2 text-gray-300 hover:text-white relative">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-                    </svg>
-                    
-                    @php
-                        $unreadCount = auth()->user()->unreadNotifications->count();
-                    @endphp
-                    
-                    @if($unreadCount > 0)
-                        <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                            {{ $unreadCount > 9 ? '9+' : $unreadCount }}
-                        </span>
-                    @endif
-                </a>
+<x-app-layout>
+    <div class="py-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Welcome Header -->
+            <div class="mb-8">
+                <h1 class="text-2xl font-semibold text-gray-100">
+                    Dashboard
+                </h1>
+                <p class="text-gray-400 mt-2">
+                    Welcome back, {{ auth()->user()->name }}!
+                </p>
             </div>
-        @endauth
-    </div>
 
-    {{-- Make alerts more prominent --}}
-    @if($overdueTasks > 0)
-        <div class="mb-6 p-4 bg-red-900/30 border-l-4 border-red-600 rounded-lg">
-            <div class="flex items-center gap-3">
-                <span class="text-xl">🔴</span>
-                <div>
-                    <p class="font-medium text-red-300">Overdue Tasks</p>
-                    <p class="text-sm text-red-400">You have {{ $overdueTasks }} task(s) past their due date</p>
+            <!-- Quick Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+                    <div class="text-sm text-gray-400">Projects</div>
+                    <div class="text-2xl font-semibold text-gray-200">{{ $stats['total_projects'] }}</div>
+                </div>
+                <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+                    <div class="text-sm text-gray-400">Pending Tasks</div>
+                    <div class="text-2xl font-semibold text-yellow-400">{{ $stats['pending_tasks'] }}</div>
+                </div>
+                <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+                    <div class="text-sm text-gray-400">Overdue</div>
+                    <div class="text-2xl font-semibold text-red-400">{{ $stats['overdue_tasks'] }}</div>
+                </div>
+                <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+                    <div class="text-sm text-gray-400">Due Soon</div>
+                    <div class="text-2xl font-semibold text-orange-400">{{ $stats['due_soon_tasks'] }}</div>
                 </div>
             </div>
-        </div>
-    @endif
 
-    @if($dueSoonTasks > 0)
-        <div class="mb-6 p-4 bg-yellow-900/30 border border-yellow-700 rounded-lg">
-            <div class="flex items-center gap-2 text-yellow-300">
-                <span class="text-lg">🟡</span>
-                <span class="font-medium">You have {{ $dueSoonTasks }} task(s) due soon (within 2 days)</span>
-            </div>
-        </div>
-    @endif
+            <!-- Two Column Layout -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- My Projects -->
+                <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-lg font-semibold text-gray-200">My Projects</h2>
+                        <a href="{{ route('projects.index') }}" class="text-sm text-indigo-400 hover:text-indigo-300">
+                            View all →
+                        </a>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        @forelse($projects as $project)
+                            <a href="{{ route('projects.show', $project) }}" 
+                               class="block bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-gray-600 transition-colors">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h3 class="font-medium text-gray-200">{{ $project->name }}</h3>
+                                    <span class="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">
+                                        {{ $project->pending_tasks_count ?? 0 }} pending
+                                    </span>
+                                </div>
+                                @if($project->description)
+                                    <p class="text-sm text-gray-400">{{ Str::limit($project->description, 100) }}</p>
+                                @endif
+                            </a>
+                        @empty
+                            <div class="text-center py-8 text-gray-500">
+                                <div class="text-3xl mb-3">📁</div>
+                                <p>No projects yet</p>
+                                <a href="{{ route('projects.create') }}" class="text-indigo-400 hover:text-indigo-300 text-sm mt-2 inline-block">
+                                    Create your first project →
+                                </a>
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
 
-    {{-- Empty State --}}
-    @if($tasksByProject->isEmpty())
-        <div class="bg-gray-800 border border-gray-700 rounded-lg p-6 text-center text-gray-400">
-            No tasks assigned to you yet.
-        </div>
-    @else
-
-        {{-- Projects --}}
-        <div class="space-y-8">
-            @foreach($tasksByProject as $projectName => $tasks)
-
-                <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
-                    {{-- Project title --}}
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-semibold text-gray-100">
-                            {{ $projectName }}
-                        </h3>
-
-                        <span class="text-xs text-gray-500">
-                            {{ $tasks->count() }} task(s)
+                <!-- My Tasks -->
+                <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-lg font-semibold text-gray-200">My Tasks</h2>
+                        <span class="text-sm text-gray-400">
+                            {{ $userTasks->count() }} pending
                         </span>
                     </div>
-
-                    {{-- Tasks --}}
-                    <ul class="space-y-3">
-                        @foreach($tasks as $task)
-                            {{-- In your task list item --}}
-                            <li class="flex items-center justify-between bg-gray-800 hover:bg-gray-750 transition rounded-lg p-4">
-                                <div>
-                                    <p class="font-medium text-gray-100">
-                                        {{ $task->title }}
-                                    </p>
-                                    
-                                    <div class="flex items-center gap-3 mt-2">
-                                        {{-- Status badge --}}
-                                        <span class="inline-block text-xs px-2 py-1 rounded
-                                            @if($task->status === 'todo')
-                                                bg-gray-700 text-gray-300
-                                            @elseif($task->status === 'doing')
-                                                bg-blue-600/20 text-blue-400
-                                            @elseif($task->status === 'done')
-                                                bg-green-600/20 text-green-400
-                                            @endif
-                                        ">
-                                            {{ ucfirst($task->status) }}
+                    
+                    <div class="space-y-3">
+                        @forelse($userTasks as $task)
+                            <div class="bg-gray-800 border border-gray-700 rounded-lg p-3 hover:border-gray-600 transition-colors">
+                                <div class="flex justify-between items-start mb-2">
+                                    <h3 class="font-medium text-gray-200">{{ $task->title }}</h3>
+                                    @if($task->due_date)
+                                        <span class="text-xs px-2 py-1 rounded flex items-center gap-1
+                                            {{ $task->isOverdue() ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 
+                                               ($task->isDueSoon() ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 
+                                               'bg-blue-500/20 text-blue-400 border border-blue-500/30') }}"
+                                            title="Due: {{ $task->due_date->format('M d, Y') }}">
+                                            <span>{{ $task->status === 'done' ? '✅' : 
+                                                   ($task->isOverdue() ? '🔴' : 
+                                                   ($task->isDueSoon() ? '🟡' : '🟢')) }}</span>
+                                            <span>{{ $task->due_date->format('M d') }}</span>
                                         </span>
-                                        
-                                        {{-- Due Date Indicator --}}
-                                        @if($task->due_date)
-                                            @php
-                                                $indicatorColor = match($task->status_indicator) {
-                                                    'completed' => 'bg-green-600/20 text-green-400 border border-green-700/30',
-                                                    'on_track' => 'bg-green-600/20 text-green-400 border border-green-700/30',
-                                                    'due_soon' => 'bg-yellow-600/20 text-yellow-400 border border-yellow-700/30',
-                                                    'overdue' => 'bg-red-600/20 text-red-400 border border-red-700/30',
-                                                    default => 'bg-gray-700 text-gray-300',
-                                                };
-                                            @endphp
-                                            <span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded {{ $indicatorColor }}">
-                                                {{ $task->status_indicator_icon }}
-                                                Due: {{ $task->due_date->format('M d') }}
-                                            </span>
-                                        @endif
-                                    </div>
+                                    @endif
                                 </div>
-
-                                <a
-                                    href="{{ route('projects.show', $task->project_id) }}"
-                                    class="text-sm text-blue-400 hover:text-blue-300 whitespace-nowrap"
-                                >
-                                    View project →
-                                </a>
-                            </li>
-                        @endforeach
-                    </ul>
+                                
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-gray-400">
+                                        {{ $task->project->name }}
+                                    </span>
+                                    <span class="text-xs px-2 py-1 rounded
+                                        {{ $task->status === 'todo' ? 'bg-gray-700 text-gray-300' : 
+                                           ($task->status === 'doing' ? 'bg-blue-500/20 text-blue-300' : 
+                                           'bg-green-500/20 text-green-300') }}">
+                                        {{ ucfirst($task->status) }}
+                                    </span>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="text-center py-8 text-gray-500">
+                                <div class="text-3xl mb-3">🎉</div>
+                                <p>No tasks assigned to you</p>
+                                <p class="text-sm mt-1">Enjoy your free time!</p>
+                            </div>
+                        @endforelse
+                    </div>
+                    
+                    <!-- Overdue Tasks Warning -->
+                    @if($overdueTasks->count() > 0)
+                        <div class="mt-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                            <div class="flex items-center gap-3">
+                                <span class="text-red-400 text-xl">⚠️</span>
+                                <div>
+                                    <h3 class="font-medium text-red-300">Overdue Tasks</h3>
+                                    <p class="text-sm text-red-400/80 mt-1">
+                                        You have {{ $overdueTasks->count() }} overdue task(s). 
+                                        <a href="{{ route('projects.activity.page', $overdueTasks->first()->project) }}" 
+                                           class="underline hover:text-red-300">
+                                            Check them now
+                                        </a>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+                    
+                    <!-- Due Soon Warning -->
+                    @if($dueSoonTasks->count() > 0)
+                        <div class="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                            <div class="flex items-center gap-3">
+                                <span class="text-yellow-400 text-xl">⏰</span>
+                                <div>
+                                    <h3 class="font-medium text-yellow-300">Tasks Due Soon</h3>
+                                    <p class="text-sm text-yellow-400/80 mt-1">
+                                        {{ $dueSoonTasks->count() }} task(s) due in the next 2 days.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 </div>
+            </div>
 
-            @endforeach
+            <!-- All Tasks by Project (Your Original View) -->
+            @if($tasksByProject->count() > 0)
+            <div class="mt-8 bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-200 mb-6">All Tasks by Project</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    @foreach($tasksByProject as $projectName => $tasks)
+                        <div class="bg-gray-800 border border-gray-700 rounded-lg p-4">
+                            <h3 class="font-medium text-gray-200 mb-3">{{ $projectName }}</h3>
+                            <div class="space-y-2">
+                                @foreach($tasks as $task)
+                                    <div class="flex items-center justify-between p-2 bg-gray-700/50 rounded">
+                                        <span class="text-sm text-gray-300">{{ $task->title }}</span>
+                                        <span class="text-xs px-2 py-1 rounded
+                                            {{ $task->status === 'todo' ? 'bg-gray-600 text-gray-300' : 
+                                               ($task->status === 'doing' ? 'bg-blue-500/20 text-blue-300' : 
+                                               'bg-green-500/20 text-green-300') }}">
+                                            {{ $task->status }}
+                                        </span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
         </div>
-
-    @endif
-</div>
+    </div>
+</x-app-layout>

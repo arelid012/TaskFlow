@@ -11,14 +11,16 @@ class ActivityLogger
         string $action,
         string $description,
         ?int $projectId = null,
-        ?int $taskId = null
+        ?int $taskId = null,
+        ?array $meta = null  // Add this parameter
     ) {
-        ActivityLog::create([
+        return ActivityLog::create([
             'user_id'    => $userId,
             'action'     => $action,
             'description'=> $description,
             'project_id' => $projectId,
             'task_id'    => $taskId,
+            'meta'       => $meta ? json_encode($meta) : null, // Add meta column
         ]);
     }
 }

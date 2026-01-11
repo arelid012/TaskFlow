@@ -2,9 +2,11 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
-Alpine.data('activityLog', ({projectId, users}) => ({
+Alpine.data('activityLog', ({projectId, users, userRole, userId}) => ({
     projectId,
     users,
+    userRole,
+    userId,
     logs: [],
     loading: false,
     filters: { action: '' },
@@ -33,17 +35,15 @@ Alpine.data('activityLog', ({projectId, users}) => ({
 
     async fetchLogs(url = null) {
         this.loading = true;
-        const endpoint = url ?? `/projects/${projectId}/activity/logs?action=${this.filters.action}`;
-        const response = await fetch(endpoint, { headers: { 'Accept': 'application/json' } });
+        
+        // Use this.projectId, not projectId!
+        const endpoint = url ?? `/projects/${this.projectId}/activity/logs?action=${this.filters.action}`;
+        
+        const response = await fetch(endpoint, { 
+            headers: { 'Accept': 'application/json' }
+        });
+        
         const data = await response.json();
-        
-        // DEBUG: Check raw data for log 91
-        const log91 = data.data?.find(log => log.id === 91);
-        console.log('RAW log 91 from API:', log91);
-        console.log('RAW log 91 task:', log91?.task);
-        console.log('RAW log 91 assigned_to:', log91?.task?.assigned_to);
-        console.log('Type of assigned_to:', typeof log91?.task?.assigned_to);
-        
         this.logs = data.data ?? [];
         this.pagination.next = data.links?.next ?? null;
         this.pagination.prev = data.links?.prev ?? null;
@@ -65,15 +65,16 @@ Alpine.data('activityLog', ({projectId, users}) => ({
         console.log('Creating task with:', taskData);
         
         try {
-            const response = await fetch(`/projects/${projectId}/tasks`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                },
-                body: JSON.stringify(taskData)
-            });
+        // Use this.projectId, not projectId!
+        const response = await fetch(`/projects/${this.projectId}/tasks`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify(taskData)
+        });
             
             if (!response.ok) {
                 const error = await response.json();
@@ -98,6 +99,10 @@ Alpine.data('activityLog', ({projectId, users}) => ({
 
     async updateStatus(taskId, status) {
         try {
+            // Find the current task to get its due date
+            const currentLog = this.logs.find(log => log.task?.id === taskId);
+            const dueDate = currentLog?.task?.due_date || null;
+            
             const response = await fetch(`/tasks/${taskId}`, {
                 method: 'PATCH',
                 headers: {
@@ -105,7 +110,10 @@ Alpine.data('activityLog', ({projectId, users}) => ({
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                 },
-                body: JSON.stringify({ status })
+                body: JSON.stringify({ 
+                    status: status,
+                    due_date: dueDate  // Preserve the current due date
+                })
             });
             
             if (!response.ok) {
@@ -221,6 +229,39 @@ Alpine.data('activityLog', ({projectId, users}) => ({
         }
     },
 
+    async deleteTask(taskId) {
+        // 1. Ask for confirmation
+        if (!confirm('Delete this task?')) return;
+        
+        // 2. Log for debugging
+        console.log('Deleting task:', taskId);
+        
+        // 3. Use ABSOLUTE URL to avoid any confusion
+        const url = `http://127.0.0.1:8000/tasks/${taskId}`;
+        console.log('Using URL:', url);
+        
+        try {
+            // 4. Make ONE simple request
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                }
+            });
+            
+            // 5. Log response (for debugging only)
+            console.log('Response status:', response.status);
+            
+            // 6. ALWAYS refresh the page regardless of response
+            location.reload();
+            
+        } catch (error) {
+            // 7. Even if there's an error, refresh
+            console.error('Error:', error);
+            location.reload();
+        }
+    },
+
     // Helper methods for task status indicators
     isTaskOverdue(task) {
         if (!task.due_date || task.status === 'done') return false;
@@ -258,6 +299,101 @@ Alpine.data('activityLog', ({projectId, users}) => ({
             month: 'short', 
             day: 'numeric' 
         });
+    },
+
+    // Permission checking methods
+    canEditDueDate(task) {
+        // Project owner can always edit
+        if (this.userId === task.project?.created_by) return true;
+        
+        // Global admins can edit
+        if (this.userRole === 'admin') return true;
+        
+        // Task creator can edit
+        if (task.created_by === this.userId) return true;
+        
+        // Assignee can edit their own task due date
+        if (task.assigned_to === this.userId) return true;
+        
+        // Project leads, managers can edit any
+        return ['lead', 'manager', 'owner'].includes(this.userRole);
+    },
+
+    canChangeStatus(task) {
+        if (!this.userRole || this.userRole === 'viewer') return false;
+        
+        // Assignee can change their own task status
+        if (task.assigned_to === this.userId) return true;
+        
+        // Leads, managers, admins can change any status
+        return ['lead', 'manager', 'admin'].includes(this.userRole);
+    },
+
+    canAssignTask(task) {
+        // Check if user can assign tasks
+        // Only leads, managers, admins can assign
+        return ['lead', 'manager', 'admin'].includes(this.userRole);
+    },
+
+    canEditTask(task) {
+        // Check if user can edit task in general
+        return this.userRole !== 'viewer';
+    },
+
+    canAddDueDate(task) {
+        return this.canEditDueDate(task);
+    },
+
+    canDeleteTask(task, log) {
+        console.log('=== DELETE PERMISSION CHECK ===');
+        console.log('Task:', task);
+        console.log('Log user:', log.user);
+        
+        // 1. Check if user is task creator
+        if (task.created_by && task.created_by === this.userId) {
+            console.log('✓ User is task creator');
+            return true;
+        }
+        
+        // 2. Check if user created the activity log (fallback)
+        if (log.user && log.user.id === this.userId) {
+            console.log('✓ User created this activity log');
+            return true;
+        }
+        
+        // 3. Check if user is admin
+        if (this.userRole === 'admin') {
+            console.log('✓ User is admin');
+            return true;
+        }
+        
+        // 4. Check if user is project owner (need project_id in task)
+        // This is optional but good to have
+        if (task.project_id && task.project_created_by === this.userId) {
+            console.log('✓ User is project owner');
+            return true;
+        }
+        
+        console.log('✗ User cannot delete this task');
+        return false;
+    },
+
+    // Optional: Add this if you want to check specific permissions
+    async checkPermission(taskId, permission) {
+        try {
+            const response = await fetch(`/tasks/${taskId}/check-permission`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({ permission: permission })
+            });
+            return response.ok;
+        } catch (error) {
+            console.error('Permission check failed:', error);
+            return false;
+        }
     }
 }));
 

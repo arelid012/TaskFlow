@@ -31,7 +31,17 @@ class Project extends Model
 
     public function users()
     {
-        return $this->belongsToMany(User::class);
+        return $this->belongsToMany(User::class, 'project_user');
+    }
+    
+    public function assignedUsers()
+    {
+        return $this->belongsToMany(User::class, 'project_user');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function progress(): int
@@ -52,5 +62,34 @@ class Project extends Model
         return $this->belongsToMany(User::class)
             ->withPivot('role')
             ->withTimestamps();
+    }
+
+    public function isMember(User $user): bool
+    {
+        return $this->members()->where('user_id', $user->id)->exists();
+    }
+
+    public function userCan(User $user, string $ability): bool
+    {
+        $role = $this->getUserRole($user);
+        
+        $permissions = [
+            'viewer' => ['view'],
+            'member' => ['view', 'create_task', 'update_own_tasks'],
+            'lead'   => ['view', 'create_task', 'update_tasks', 'assign_tasks'],
+            'manager'=> ['view', 'create_task', 'update_tasks', 'assign_tasks', 'manage_members'],
+            'owner'  => ['view', 'create_task', 'update_tasks', 'assign_tasks', 'manage_members', 'delete_project'],
+        ];
+        
+        return in_array($ability, $permissions[$role] ?? []);
+    }
+
+    public function getUserRole($userId)
+    {
+        return $this->members()
+            ->where('user_id', $userId)
+            ->first()
+            ?->pivot
+            ?->role ?? null;
     }
 }

@@ -7,6 +7,7 @@ use App\Http\Controllers\TaskController;
 use App\Http\Controllers\ProjectActivityController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ProjectMemberController;
 
 
 Route::get('/', function () {
@@ -30,7 +31,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Projects
-    Route::resource('projects', ProjectController::class);
+    Route::resource('projects', ProjectController::class)->except(['show']);
+    Route::get('/projects/{project}', [ProjectController::class, 'show'])
+        ->name('projects.show');
 
     // Admin
     Route::middleware(['role:admin'])->group(function () {
@@ -54,6 +57,9 @@ Route::middleware('auth')->group(function () {
     // Tasks (global)
     Route::patch('/tasks/{task}', [TaskController::class, 'update'])
         ->name('tasks.update');
+
+    Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])
+        ->name('tasks.destroy');
 
     Route::post('/tasks/{task}/assign', [TaskController::class, 'assign'])
         ->name('tasks.assign');
@@ -84,6 +90,21 @@ Route::middleware('auth')->group(function () {
         
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])
         ->name('notifications.unread-count');
+
+    // Project member management
+    Route::prefix('projects/{project}')->group(function () {
+        Route::get('/members', [ProjectMemberController::class, 'index'])
+            ->name('projects.members.index');
+            
+        Route::post('/members', [ProjectMemberController::class, 'store'])
+            ->name('projects.members.store');
+            
+        Route::delete('/members/{user}', [ProjectMemberController::class, 'destroy'])
+            ->name('projects.members.destroy');
+            
+        Route::put('/members/{user}/role', [ProjectMemberController::class, 'updateRole'])
+            ->name('projects.members.update-role');
+    });
 
     
 });

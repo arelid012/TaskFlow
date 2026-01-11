@@ -5,15 +5,31 @@
     ]);
 @endphp
 
+@php
+    $user = auth()->user();
+    $userRoleInProject = $project->getUserRole($user->id);
+@endphp
+
+
+@can('update', $project)
+    <a href="{{ route('projects.members.index', $project) }}" 
+       class="text-indigo-400 hover:text-indigo-300">
+        Manage Members →
+    </a>
+@endcan
+
 <x-app-layout>
     <div class="max-w-3xl mx-auto py-6 space-y-6"
         x-data="activityLog({
         projectId: {{ $project->id }},
-        users: JSON.parse('{{ $projectUsers->toJson() }}')
+        users: JSON.parse('{{ $projectUsers->toJson() }}'),
+        userRole: '{{ $userRoleInProject }}',
+        userId: {{ auth()->id() }}
         })"
         x-init="fetchLogs()"
         @task-created.window="fetchLogs()">
 
+        @if($userRoleInProject !== 'viewer')
         <!-- Task Creation Form -->
         <form @submit.prevent="createTask"
             class="space-y-4 mb-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
@@ -59,7 +75,12 @@
                     </select>
                 </div>
             </div>
+
+            @php
+                $canAssign = Gate::allows('assignTask', $project) || Gate::allows('manage-projects');
+            @endphp
             
+            @if($canAssign)
             <div>
                 <label for="assigned_to" class="block text-sm font-medium text-gray-300 mb-1">
                     Assign To (Optional)
@@ -69,11 +90,14 @@
                     class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 >
                     <option value="">Unassigned</option>
-                    @foreach($users as $user)
-                        <option value="{{ $user->id }}">{{ $user->name }}</option>
+                    @foreach($project->members as $member)
+                        <option value="{{ $member->id }}">{{ $member->name }}</option>
                     @endforeach
                 </select>
             </div>
+            @else
+            <!-- Show read-only or hide field -->
+            @endif
             
             <button
                 type="submit"
@@ -83,6 +107,11 @@
                 Add Task
             </button>
         </form>
+        @else
+                <div class="mb-6 p-4 bg-gray-800/50 border border-gray-700 rounded-lg text-center">
+                <p class="text-gray-400">📋 Viewers cannot create tasks</p>
+            </div>
+        @endif
 
         <!-- Page Header -->
         <div>
@@ -195,6 +224,7 @@
                                     <!-- Due Date Indicator - CLICK TO EDIT -->
                                     <template x-if="log.task.due_date">
                                         <button @click="editDueDate(log.task)"
+                                            x-show="canEditDueDate(log.task)"
                                             class="text-xs px-2 py-1 rounded flex items-center gap-1 hover:opacity-80 transition-opacity"
                                             :class="{
                                                 'bg-red-500/20 text-red-400 border border-red-500/30': isTaskOverdue(log.task),
@@ -207,11 +237,27 @@
                                             <span x-text="getTaskStatusIcon(log.task)"></span>
                                             <span x-text="formatDate(log.task.due_date)"></span>
                                         </button>
+                                        
+                                        <!-- Read-only view for users who can't edit -->
+                                        <span x-show="!canEditDueDate(log.task)"
+                                            class="text-xs px-2 py-1 rounded flex items-center gap-1"
+                                            :class="{
+                                                'bg-red-500/20 text-red-400 border border-red-500/30': isTaskOverdue(log.task),
+                                                'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30': isTaskDueSoon(log.task),
+                                                'bg-green-500/20 text-green-400 border border-green-500/30': log.task.status === 'done',
+                                                'bg-blue-500/20 text-blue-400 border border-blue-500/30': !isTaskOverdue(log.task) && !isTaskDueSoon(log.task) && log.task.status !== 'done'
+                                            }"
+                                            :title="'Due: ' + new Date(log.task.due_date).toLocaleDateString()"
+                                        >
+                                            <span x-text="getTaskStatusIcon(log.task)"></span>
+                                            <span x-text="formatDate(log.task.due_date)"></span>
+                                        </span>
                                     </template>
 
                                     <!-- Add Due Date Button (if no due date) -->
                                     <template x-if="!log.task.due_date">
                                         <button @click="addDueDate(log.task)"
+                                            x-show="canAddDueDate(log.task)"
                                             class="text-xs px-2 py-1 rounded bg-gray-700 text-gray-400 hover:text-gray-300 hover:bg-gray-600 border border-gray-600"
                                             title="Add due date">
                                             + Add due date
@@ -231,39 +277,62 @@
                                     <div class="flex items-center gap-2 mt-3 pt-3 border-t border-gray-700">
                                         <!-- Status Dropdown -->
                                         <template x-if="log.task.status">
-                                            <select
-                                                class="bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-xs text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                @change="updateStatus(log.task.id, $event.target.value)"
-                                            >
-                                                <option value="" disabled selected>
-                                                    Status: <span x-text="log.task.status"></span>
-                                                </option>
-                                                <template
-                                                    x-for="option in allowedNextStatuses(log.task.status)"
-                                                    :key="option.value"
+                                            <template x-if="canChangeStatus(log.task)">
+                                                <select
+                                                    class="bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-xs text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    @change="updateStatus(log.task.id, $event.target.value)"
                                                 >
-                                                    <option :value="option.value" x-text="option.label"></option>
-                                                </template>
-                                            </select>
+                                                    <option value="" disabled selected>
+                                                        Status: <span x-text="log.task.status"></span>
+                                                    </option>
+                                                    <template
+                                                        x-for="option in allowedNextStatuses(log.task.status)"
+                                                        :key="option.value"
+                                                    >
+                                                        <option :value="option.value" x-text="option.label"></option>
+                                                    </template>
+                                                </select>
+                                            </template>
+                                            <template x-if="!canChangeStatus(log.task)">
+                                                <span class="text-xs px-2 py-1 rounded bg-gray-700 text-gray-300">
+                                                    Status: <span x-text="log.task.status"></span>
+                                                </span>
+                                            </template>
                                         </template>
 
                                         <!-- Assignment Dropdown -->
-                                        @can('assign', App\Models\Task::class)
+
+                                        @php
+                                            $user = auth()->user();
+                                            $canAssign = Gate::allows('assignTask', $project);
+                                        @endphp
+
+
+                                        @if($canAssign)
                                         <select
                                             class="bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-xs text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                             @change.debounce.300ms="assignTask(log.task.id, $event.target.value)"
                                             x-model="log.task.assigned_to"
                                         >
                                             <option value="">Unassigned</option>
-                                            <template x-for="user in users" :key="user.id">
-                                                <option :value="user.id" x-text="user.name"></option>
-                                            </template>
+                                            <!-- Only show project members -->
+                                            @foreach($project->members as $member)
+                                                <option value="{{ $member->id }}">{{ $member->name }}</option>
+                                            @endforeach
                                         </select>
-                                        @endcan
+                                        @endif
+
+                                        <!-- delete -->
+                                        <template x-if="log.task && canDeleteTask(log.task, log)">
+                                            <button @click="deleteTask(log.task.id)" 
+                                                    class="text-xs px-2 py-1 bg-red-600/20 text-red-400 hover:bg-red-600/30 rounded">
+                                                Delete
+                                            </button>
+                                        </template>
                                         
                                         <!-- Quick Actions -->
                                         <div class="flex-1"></div>
-                                        <a :href="'/projects/' + projectId" class="text-xs text-indigo-400 hover:text-indigo-300 hover:underline">
+                                        <a :href="'/projects/' + log.task.project_id" class="text-xs text-indigo-400 hover:text-indigo-300 hover:underline">
                                             View Project →
                                         </a>
                                     </div>

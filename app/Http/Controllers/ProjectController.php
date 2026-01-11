@@ -12,17 +12,18 @@ class ProjectController extends Controller
     public function index()
     {
         $user = auth()->user();
-
+        
         if ($user->role === 'admin' || $user->role === 'manager') {
-            $projects = Project::all();
+            $projects = Project::withCount(['tasks' => function ($query) {
+                $query->where('status', '!=', 'done');
+            }])->latest()->get();
         } else {
-            $projects = collect()
-                ->merge($user->projects ?? [])
-                ->merge($user->assignedProjects ?? [])
-                ->unique('id')
-                ->values();
+            // Use the members relationship directly
+            $projects = $user->projects()->withCount(['tasks' => function ($query) {
+                $query->where('status', '!=', 'done');
+            }])->latest()->get();
         }
-
+        
         return view('projects.index', compact('projects'));
     }
 
@@ -77,10 +78,21 @@ class ProjectController extends Controller
 
     public function show(Project $project)
     {
-        return [
-            'project' => $project,
-            'progress' => $project->progress(),
-        ];
+        // Check if user can view this project
+        $this->authorize('view', $project);
+        
+        // Get all tasks for this project
+        $tasks = $project->tasks()->with('assignee')->get();
+        
+        // Calculate progress
+        $totalTasks = $tasks->count();
+        $completedTasks = $tasks->where('status', 'done')->count();
+        $progress = $totalTasks > 0 ? round(($completedTasks / $totalTasks) * 100) : 0;
+        
+        // Load creator relationship
+        $project->load('creator');
+        
+        return view('projects.show', compact('project', 'tasks', 'progress'));
     }
 
 }

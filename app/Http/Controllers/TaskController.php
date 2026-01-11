@@ -22,23 +22,36 @@ class TaskController extends Controller
 
     public function store(Request $request, Project $project)
     {
-        $this->authorize('view', $project);
+        // Use the new policy method
+        $this->authorize('createTask', $project);
 
         $request->validate([
             'title' => 'required|string',
             'assigned_to' => 'nullable|exists:users,id',
             'status' => 'in:todo,doing,done',
-            'due_date' => 'nullable|date|after_or_equal:today', // Add validation
+            'due_date' => 'nullable|date|after_or_equal:today',
         ]);
+
+        // Additional validation: assignee must be project member
+        if ($request->filled('assigned_to')) {
+            $isAssigneeMember = $project->members()
+                ->where('user_id', $request->assigned_to)
+                ->exists();
+                
+            if (!$isAssigneeMember) {
+                return back()->with('error', 'Cannot assign task to non-project member.');
+            }
+        }
 
         $task = $project->tasks()->create([
             'title' => $request->title,
             'assigned_to' => $request->assigned_to,
             'status' => $request->status ?? 'todo',
-            'due_date' => $request->due_date, // Add due_date
+            'due_date' => $request->due_date,
+            'created_by' => auth()->id(), // Important!
         ]);
 
-        // ✅ ADD NOTIFICATION HERE
+        // Send notification
         if ($task->assignee && $task->assignee->id != auth()->id()) {
             $task->assignee->notify(new TaskUpdated($task, 'assigned'));
         }
@@ -165,46 +178,39 @@ class TaskController extends Controller
 
     public function assign(Request $request, Task $task)
 {
-    // Clear old logs and start fresh
-    Log::info("\n\n========== NEW ASSIGNMENT REQUEST ==========");
-    Log::info('Task ID:', ['id' => $task->id, 'current_assignee' => $task->assigned_to]);
-    Log::info('Request data:', $request->all());
-    Log::info('Auth user:', ['id' => auth()->id(), 'name' => auth()->user()->name]);
-
-    $this->authorize('assign', $task);
-
+    // 1. Validate the request
     $request->validate([
         'assigned_to' => 'nullable|exists:users,id',
     ]);
 
+    // 2. Authorize - let the Policy handle ALL permission checks
+    $this->authorize('assign', $task);
+
+    // 3. Additional check: assignee must be project member
+    if ($request->filled('assigned_to')) {
+        $isAssigneeMember = $task->project->members()
+            ->where('user_id', $request->assigned_to)
+            ->exists();
+            
+        if (!$isAssigneeMember) {
+            return response()->json([
+                'error' => 'Cannot assign task to non-project member.'
+            ], 422);
+        }
+    }
+
     $oldAssignee = $task->assigned_to;
-    Log::info('Old assignee ID:', ['old' => $oldAssignee]);
-
     $assignedTo = $request->filled('assigned_to') ? $request->assigned_to : null;
-    Log::info('New assignee ID:', ['new' => $assignedTo]);
 
+    // 4. Update the task
     $task->update(['assigned_to' => $assignedTo]);
-    Log::info('Task updated in database');
-
     $task->load('assignee');
-    Log::info('Task after load:', [
-        'assigned_to' => $task->assigned_to,
-        'has_assignee' => !is_null($task->assignee),
-        'assignee_name' => $task->assignee ? $task->assignee->name : 'null',
-        'assignee_id' => $task->assignee ? $task->assignee->id : 'null'
-    ]);
 
-    // DEBUG: Which condition will trigger?
-    Log::info('Condition check:', [
-        'condition1' => $oldAssignee && $request->assigned_to,
-        'condition2' => $request->assigned_to,
-        'condition3' => $oldAssignee && !$request->assigned_to
-    ]);
-
+    // 5. Log activity
     if ($oldAssignee && $request->assigned_to) {
-        Log::info('✅ Entering CASE 1: Reassignment');
+        // Reassignment
         $oldName = User::find($oldAssignee)?->name;
-
+        
         ActivityLogger::log(
             auth()->id(),
             'task_reassigned',
@@ -213,23 +219,8 @@ class TaskController extends Controller
             $task->id
         );
         
-        Log::info('Checking if should send notification in CASE 1:', [
-            'assignee_exists' => !is_null($task->assignee),
-            'assignee_id' => $task->assignee ? $task->assignee->id : 'null',
-            'auth_id' => auth()->id(),
-            'different_users' => $task->assignee && $task->assignee->id != auth()->id(),
-            'should_send' => $task->assignee && $task->assignee->id != auth()->id()
-        ]);
-        
-        if ($task->assignee && $task->assignee->id != auth()->id()) {
-            $task->assignee->notify(new \App\Notifications\TaskUpdated($task, 'assigned'));
-            Log::info('🎯 NOTIFICATION SENT in CASE 1 to: ' . $task->assignee->name);
-        } else {
-            Log::info('🚫 NOTIFICATION NOT SENT in CASE 1 - same user or no assignee');
-        }
-        
     } elseif ($request->assigned_to) {
-        Log::info('✅ Entering CASE 2: New assignment');
+        // New assignment
         ActivityLogger::log(
             auth()->id(),
             'task_assigned',
@@ -238,23 +229,8 @@ class TaskController extends Controller
             $task->id
         );
         
-        Log::info('Checking if should send notification in CASE 2:', [
-            'assignee_exists' => !is_null($task->assignee),
-            'assignee_id' => $task->assignee ? $task->assignee->id : 'null',
-            'auth_id' => auth()->id(),
-            'different_users' => $task->assignee && $task->assignee->id != auth()->id(),
-            'should_send' => $task->assignee && $task->assignee->id != auth()->id()
-        ]);
-        
-        if ($task->assignee && $task->assignee->id != auth()->id()) {
-            $task->assignee->notify(new \App\Notifications\TaskUpdated($task, 'assigned'));
-            Log::info('🎯 NOTIFICATION SENT in CASE 2 to: ' . $task->assignee->name);
-        } else {
-            Log::info('🚫 NOTIFICATION NOT SENT in CASE 2 - same user or no assignee');
-        }
-        
     } elseif ($oldAssignee && !$request->assigned_to) {
-        Log::info('✅ Entering CASE 3: Unassignment');
+        // Unassignment
         $oldName = User::find($oldAssignee)?->name;
         ActivityLogger::log(
             auth()->id(),
@@ -263,12 +239,14 @@ class TaskController extends Controller
             $task->project_id,
             $task->id
         );
-    } else {
-        Log::info('⚠️ No condition matched! This should not happen.');
     }
 
-    Log::info("========== END ASSIGNMENT REQUEST ==========\n");
-    
+    // 6. Send notification (if new assignee is different from current user)
+    if ($task->assignee && $task->assignee->id != auth()->id()) {
+        $task->assignee->notify(new \App\Notifications\TaskUpdated($task, 'assigned'));
+    }
+
+    // 7. Return response
     return response()->json([
         'success' => true,
         'assigned_to' => $assignedTo,
@@ -299,6 +277,27 @@ class TaskController extends Controller
             'doing' => $tasks->get('doing', []),
             'done'  => $tasks->get('done', []),
         ];
+    }
+
+    public function destroy(Task $task)
+    {
+        $this->authorize('delete', $task);
+        
+        ActivityLogger::log(
+            auth()->id(),
+            'task_deleted',
+            "Task '{$task->title}' deleted",
+            $task->project_id,
+            $task->id
+        );
+        
+        $task->delete();
+        
+        if (request()->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
+        
+        return back()->with('success', 'Task deleted successfully');
     }
 
 }
