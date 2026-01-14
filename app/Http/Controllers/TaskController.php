@@ -74,12 +74,13 @@ class TaskController extends Controller
 
         $request->validate([
             'status' => 'required|in:todo,doing,done',
-            'due_date' => 'nullable|date', // Add validation for update
+            'due_date' => 'nullable|date', // Keep as date, not after_or_equal
         ]);
 
         $oldStatus = $task->status;
         $newStatus = $request->status;
         $oldDueDate = $task->due_date;
+        $newDueDate = $request->due_date;
 
         // ✅ Validate status transition
         if (!$this->validStatusTransition($oldStatus, $newStatus)) {
@@ -87,27 +88,33 @@ class TaskController extends Controller
         }
 
         // ✅ No-op protection
-        if ($oldStatus === $newStatus && $oldDueDate == $request->due_date) {
+        if ($oldStatus === $newStatus && $oldDueDate == $newDueDate) {
             return $task;
         }
 
-        $task->update([
-            'status' => $newStatus,
-            'due_date' => $request->due_date, // Update due_date
-        ]);
+        // Update only status, preserve original due date unless explicitly changed
+        $updateData = ['status' => $newStatus];
+        
+        // Only update due_date if it's explicitly provided in the request
+        if ($request->has('due_date')) {
+            // Ensure proper date format
+            $updateData['due_date'] = $newDueDate ? date('Y-m-d', strtotime($newDueDate)) : null;
+        }
 
-        // ✅ Log due date changes
-        if ($oldDueDate != $request->due_date) {
+        $task->update($updateData);
+
+        // ✅ Log due date changes only if due_date was actually in the request
+        if ($request->has('due_date') && $oldDueDate != $newDueDate) {
             ActivityLogger::log(
                 auth()->id(),
                 'task_due_date_changed',
                 "Due date changed from " . ($oldDueDate ? $oldDueDate->format('Y-m-d') : 'Not set') . 
-                " to " . ($request->due_date ? $request->due_date : 'Not set'),
+                " to " . ($newDueDate ? date('Y-m-d', strtotime($newDueDate)) : 'Not set'),
                 $task->project_id,
                 $task->id,
                 [
                     'from' => $oldDueDate,
-                    'to'   => $request->due_date
+                    'to'   => $newDueDate
                 ]
             );
         }
@@ -124,11 +131,10 @@ class TaskController extends Controller
         }
 
         // ✅ Notify on ANY status change
-    if ($newStatus !== $oldStatus && $task->assignee && $task->assignee->id != auth()->id()) {
-        $eventType = $newStatus === 'done' ? 'completed' : 'status_changed';
-        $task->assignee->notify(new TaskUpdated($task, $eventType));
-    }
-
+        if ($newStatus !== $oldStatus && $task->assignee && $task->assignee->id != auth()->id()) {
+            $eventType = $newStatus === 'done' ? 'completed' : 'status_changed';
+            $task->assignee->notify(new TaskUpdated($task, $eventType));
+        }
 
         // ✅ Log ALL status changes
         ActivityLogger::log(

@@ -58,7 +58,7 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId, userRoleInProje
         // Prepare task data with new fields
         const taskData = {
             title: this.newTaskTitle,
-            due_date: this.newTaskDueDate || null,
+            due_date: this.formatDateForAPI(this.newTaskDueDate), // Format date properly
             assigned_to: this.newTaskAssignedTo || null,
             status: this.newTaskStatus
         };
@@ -66,16 +66,15 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId, userRoleInProje
         console.log('Creating task with:', taskData);
         
         try {
-        // Use this.projectId, not projectId!
-        const response = await fetch(`/projects/${this.projectId}/tasks`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify(taskData)
-        });
+            const response = await fetch(`/projects/${this.projectId}/tasks`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify(taskData)
+            });
             
             if (!response.ok) {
                 const error = await response.json();
@@ -98,12 +97,27 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId, userRoleInProje
         }
     },
 
+    // Add this helper function to format dates consistently
+    formatDateForAPI(dateString) {
+        if (!dateString) return null;
+        
+        // Input type="date" already gives YYYY-MM-DD format
+        // But let's ensure it's correct
+        const date = new Date(dateString);
+        
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+            console.warn('Invalid date:', dateString);
+            return null;
+        }
+        
+        // Return in YYYY-MM-DD format
+        return date.toISOString().split('T')[0];
+    },
+
     async updateStatus(taskId, status) {
         try {
-            // Find the current task to get its due date
-            const currentLog = this.logs.find(log => log.task?.id === taskId);
-            const dueDate = currentLog?.task?.due_date || null;
-            
+            // Send ONLY the status, not the due date
             const response = await fetch(`/tasks/${taskId}`, {
                 method: 'PATCH',
                 headers: {
@@ -112,8 +126,8 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId, userRoleInProje
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                 },
                 body: JSON.stringify({ 
-                    status: status,
-                    due_date: dueDate  // Preserve the current due date
+                    status: status
+                    // REMOVE: due_date: dueDate
                 })
             });
             
