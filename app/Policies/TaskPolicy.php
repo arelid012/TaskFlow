@@ -129,20 +129,23 @@ class TaskPolicy
      */
     public function changeStatus(User $user, Task $task): bool
     {
-        // Similar to update, but maybe more restrictive
+        // 1. Task creator can change status
+        if ($task->created_by === $user->id) {
+            return true;
+        }
         
-        // 1. Assignee can change their own task status
+        // 2. Assignee can change their own task status
         if ($task->assigned_to === $user->id) {
             return true;
         }
         
-        // 2. Project leads/managers can change any status
+        // 3. Project leads/managers can change any status
         $userRoleInProject = $task->project->members()
             ->where('user_id', $user->id)
             ->value('project_user.role');
             
         return in_array($userRoleInProject, ['lead', 'manager', 'owner']) ||
-               in_array($user->role, ['admin', 'manager']);
+            in_array($user->role, ['admin', 'manager']);
     }
     
     /**
@@ -150,7 +153,33 @@ class TaskPolicy
      */
     public function changeDueDate(User $user, Task $task): bool
     {
-        // Usually same as update permission
-        return $this->update($user, $task);
+        // More specific than just update() - focused on due dates
+        
+        // 1. Admins and managers (global) can edit
+        if (in_array($user->role, ['admin', 'manager'])) {
+            return true;
+        }
+        
+        // 2. Task creator can edit due date
+        if ($task->created_by === $user->id) {
+            return true;
+        }
+        
+        // 3. Assignee can edit due date of their task
+        if ($task->assigned_to === $user->id) {
+            return true;
+        }
+        
+        // 4. Project owner can edit any task in their project
+        if ($task->project->created_by === $user->id) {
+            return true;
+        }
+        
+        // 5. Project leads/managers (pivot) can edit
+        $userRoleInProject = $task->project->members()
+            ->where('user_id', $user->id)
+            ->value('project_user.role');
+            
+        return in_array($userRoleInProject, ['lead', 'manager']);
     }
 }

@@ -303,32 +303,20 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId}) => ({
 
     // Permission checking methods
     canEditDueDate(task) {
-        // Project owner can always edit
-        if (this.userId === task.project?.created_by) return true;
-        
-        // Global admins can edit
-        if (this.userRole === 'admin') return true;
-        
-        // Task creator can edit
-        if (task.created_by === this.userId) return true;
-        
-        // Assignee can edit their own task due date
-        if (task.assigned_to === this.userId) return true;
-        
-        // Project leads, managers can edit any
-        return ['lead', 'manager', 'owner'].includes(this.userRole);
+        // Same permissions for adding or editing due date
+        return this.canAddDueDate(task);
     },
 
     canChangeStatus(task) {
-        // Project owners can change any status
-        if (this.userId === task.project?.created_by) return true;
-        
         if (!this.userRole || this.userRole === 'viewer') return false;
         
-        // Assignee can change their own task status
+        // 1. Task creator can change status
+        if (task.created_by === this.userId) return true;
+        
+        // 2. Assignee can change status
         if (task.assigned_to === this.userId) return true;
         
-        // Leads, managers, admins can change any status
+        // 3. Leads, managers, admins can change any status
         return ['lead', 'manager', 'admin'].includes(this.userRole);
     },
 
@@ -344,7 +332,29 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId}) => ({
     },
 
     canAddDueDate(task) {
-        return this.canEditDueDate(task);
+        // 1. Admins/Managers can always edit
+        if (this.userRole === 'admin' || this.userRole === 'manager') {
+            return true;
+        }
+        
+        // 2. Task creator can edit their own task
+        if (task.created_by === this.userId) {
+            return true;
+        }
+        
+        // 3. Assignee can edit their own assigned task
+        if (task.assigned_to === this.userId) {
+            return true;
+        }
+        
+        // 4. Project owner can edit any task in their project
+        if (task.project && task.project.created_by === this.userId) {
+            return true;
+        }
+        
+        // 5. Project leads/managers (pivot role) can edit
+        // Need to check userRoleInProject from your data
+        return ['lead', 'manager'].includes(this.userRoleInProject);
     },
 
     canDeleteTask(task, log) {
