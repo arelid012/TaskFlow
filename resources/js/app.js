@@ -399,27 +399,17 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId, userRoleInProje
     },
 
     canDeleteTask(task, log) {
-        // 4 WAYS TO DELETE:
-        // 1. Admin
-        // 2. Task creator (if task.created_by exists)
-        // 3. Project owner
-        // 4. Log creator (fallback - if log.user.id matches)
+        // 1. Global Admin/Manager can delete
+        if (this.userRole === 'admin' || this.userRole === 'manager') return true;
         
-        // 1. Admin OR Manager can delete
-        if (this.userRole === 'admin' || this.userRole === 'manager') {
-            console.log('✓ Delete allowed: User is admin/manager');
-            return true;
-        }
+        // 2. Project Manager can delete
+        if (this.userRoleInProject === 'manager') return true;
         
-        // 2. Task creator
+        // 3. Task creator can delete
         if (task.created_by && task.created_by === this.userId) return true;
         
-        // 3. Project owner
+        // 4. Project owner can delete
         if (task.project && task.project.created_by === this.userId) return true;
-        
-        // 4. Log creator (for tasks where created_by is null)
-        // This is a fallback - check who created the activity log
-        if (log && log.user && log.user.id === this.userId) return true;
         
         return false;
     },

@@ -68,31 +68,24 @@ class TaskPolicy
 
     public function delete(User $user, Task $task): bool
     {
-        Log::info("=== DELETE POLICY DEBUG ===");
-        Log::info("User ID: {$user->id}, Role: {$user->role}");
-        Log::info("Task ID: {$task->id}");
-        Log::info("Task created_by: " . ($task->created_by ?? 'NULL'));
-        Log::info("Task project_id: " . ($task->project_id ?? 'NULL'));
+        // Global admins/managers
+        if (in_array($user->role, ['admin', 'manager'])) return true;
         
-        // Load the project relationship
+        // Task creator
+        if ($task->created_by && $task->created_by == $user->id) return true;
+        
+        // Project owner
         $task->load('project');
-        Log::info("Project created_by: " . ($task->project->created_by ?? 'NULL'));
+        if ($task->project->created_by == $user->id) return true;
         
-        // Check each condition
-        $isTaskCreator = $task->created_by && $task->created_by == $user->id;
-        $isAdminOrManager = in_array($user->role, ['admin', 'manager']);
-        $isProjectOwner = $task->project && $task->project->created_by == $user->id;
+        // Project manager (pivot)
+        $userRoleInProject = $task->project->members()
+            ->where('user_id', $user->id)
+            ->value('project_user.role');
         
-        Log::info("Is task creator? " . ($isTaskCreator ? 'YES' : 'NO'));
-        Log::info("Is admin/manager? " . ($isAdminOrManager ? 'YES' : 'NO'));
-        Log::info("Is project owner? " . ($isProjectOwner ? 'YES' : 'NO'));
+        if ($userRoleInProject === 'manager') return true;
         
-        $result = $isTaskCreator || $isAdminOrManager || $isProjectOwner;
-        
-        Log::info("Final result: " . ($result ? 'ALLOW' : 'DENY'));
-        Log::info("=== END DEBUG ===");
-        
-        return $result;
+        return false;
     }
 
     public function assign(User $user, Task $task): bool
