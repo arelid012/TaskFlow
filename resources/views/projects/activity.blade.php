@@ -25,9 +25,11 @@
         users: JSON.parse('{{ $projectUsers->toJson() }}'),
         userRole: '{{ $user->role }}',
         userRoleInProject: '{{ $userRoleInProject }}',
-        userId: {{ auth()->id() }}
+        userId: {{ auth()->id() }},  <!-- ADD COMMA HERE -->
+        highlightTaskId: {{ $highlightTaskId ?? 'null' }},
+        initialPage: {{ $initialPage ?? 1 }}
         })"
-        x-init="fetchLogs()"
+        x-init="init()"
         @task-created.window="fetchLogs()">
 
         @if($userRoleInProject !== 'viewer')
@@ -206,69 +208,71 @@
                         <!-- Task Info -->
                         <template x-if="log.task">
                             <div class="mt-3">
-                                <!-- Task Title & Due Date -->
-                                <div class="flex items-center justify-between mb-3">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-gray-200 font-medium" x-text="log.task.title"></span>
+                                <!-- Add id attribute to the task container -->
+                                <div :id="'task-' + log.task.id">
+                                    <!-- Task Title & Due Date -->
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-gray-200 font-medium" x-text="log.task.title"></span>
+                                            
+                                            <!-- Task Status Badge -->
+                                            <span class="text-xs px-2 py-1 rounded"
+                                                :class="{
+                                                    'bg-gray-700 text-gray-300': log.task.status === 'todo',
+                                                    'bg-blue-500/20 text-blue-300': log.task.status === 'doing',
+                                                    'bg-green-500/20 text-green-300': log.task.status === 'done'
+                                                }"
+                                                x-text="log.task.status.charAt(0).toUpperCase() + log.task.status.slice(1)">
+                                            </span>
+                                        </div>
                                         
-                                        <!-- Task Status Badge -->
-                                        <span class="text-xs px-2 py-1 rounded"
-                                            :class="{
-                                                'bg-gray-700 text-gray-300': log.task.status === 'todo',
-                                                'bg-blue-500/20 text-blue-300': log.task.status === 'doing',
-                                                'bg-green-500/20 text-green-300': log.task.status === 'done'
-                                            }"
-                                            x-text="log.task.status.charAt(0).toUpperCase() + log.task.status.slice(1)">
-                                        </span>
-                                    </div>
-                                    
-                                    <!-- Due Date Indicator - CLICK TO EDIT -->
-                                    @if($userRoleInProject !== 'viewer')
-                                    <template x-if="log.task.due_date">
-                                        <button @click="editDueDate(log.task)"
-                                            x-show="canEditDueDate(log.task)"
-                                            class="text-xs px-2 py-1 rounded flex items-center gap-1 hover:opacity-80 transition-opacity"
-                                            :class="{
-                                                'bg-red-500/20 text-red-400 border border-red-500/30': isTaskOverdue(log.task),
-                                                'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30': isTaskDueSoon(log.task),
-                                                'bg-green-500/20 text-green-400 border border-green-500/30': log.task.status === 'done',
-                                                'bg-blue-500/20 text-blue-400 border border-blue-500/30': !isTaskOverdue(log.task) && !isTaskDueSoon(log.task) && log.task.status !== 'done'
-                                            }"
-                                            :title="'Click to edit. Due: ' + new Date(log.task.due_date).toLocaleDateString()"
-                                        >
-                                            <span x-text="getTaskStatusIcon(log.task)"></span>
-                                            <span x-text="formatDate(log.task.due_date)"></span>
-                                        </button>
+                                        <!-- Due Date Indicator - CLICK TO EDIT -->
+                                        @if($userRoleInProject !== 'viewer')
+                                        <template x-if="log.task.due_date">
+                                            <button @click="editDueDate(log.task)"
+                                                x-show="canEditDueDate(log.task)"
+                                                class="text-xs px-2 py-1 rounded flex items-center gap-1 hover:opacity-80 transition-opacity"
+                                                :class="{
+                                                    'bg-red-500/20 text-red-400 border border-red-500/30': isTaskOverdue(log.task),
+                                                    'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30': isTaskDueSoon(log.task),
+                                                    'bg-green-500/20 text-green-400 border border-green-500/30': log.task.status === 'done',
+                                                    'bg-blue-500/20 text-blue-400 border border-blue-500/30': !isTaskOverdue(log.task) && !isTaskDueSoon(log.task) && log.task.status !== 'done'
+                                                }"
+                                                :title="'Click to edit. Due: ' + new Date(log.task.due_date).toLocaleDateString()"
+                                            >
+                                                <span x-text="getTaskStatusIcon(log.task)"></span>
+                                                <span x-text="formatDate(log.task.due_date)"></span>
+                                            </button>
+                                            
+                                            <!-- Read-only view for users who can't edit -->
+                                            <span x-show="!canEditDueDate(log.task)"
+                                                class="text-xs px-2 py-1 rounded flex items-center gap-1"
+                                                :class="{
+                                                    'bg-red-500/20 text-red-400 border border-red-500/30': isTaskOverdue(log.task),
+                                                    'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30': isTaskDueSoon(log.task),
+                                                    'bg-green-500/20 text-green-400 border border-green-500/30': log.task.status === 'done',
+                                                    'bg-blue-500/20 text-blue-400 border border-blue-500/30': !isTaskOverdue(log.task) && !isTaskDueSoon(log.task) && log.task.status !== 'done'
+                                                }"
+                                                :title="'Due: ' + new Date(log.task.due_date).toLocaleDateString()"
+                                            >
+                                                <span x-text="getTaskStatusIcon(log.task)"></span>
+                                                <span x-text="formatDate(log.task.due_date)"></span>
+                                            </span>
+                                        </template>
                                         
-                                        <!-- Read-only view for users who can't edit -->
-                                        <span x-show="!canEditDueDate(log.task)"
-                                            class="text-xs px-2 py-1 rounded flex items-center gap-1"
-                                            :class="{
-                                                'bg-red-500/20 text-red-400 border border-red-500/30': isTaskOverdue(log.task),
-                                                'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30': isTaskDueSoon(log.task),
-                                                'bg-green-500/20 text-green-400 border border-green-500/30': log.task.status === 'done',
-                                                'bg-blue-500/20 text-blue-400 border border-blue-500/30': !isTaskOverdue(log.task) && !isTaskDueSoon(log.task) && log.task.status !== 'done'
-                                            }"
-                                            :title="'Due: ' + new Date(log.task.due_date).toLocaleDateString()"
-                                        >
-                                            <span x-text="getTaskStatusIcon(log.task)"></span>
-                                            <span x-text="formatDate(log.task.due_date)"></span>
-                                        </span>
-                                    </template>
-                                    
 
-                                    
-                                    <!-- Add Due Date Button (if no due date) -->
-                                    <template x-if="!log.task.due_date">
-                                        <button @click="addDueDate(log.task)"
-                                            x-show="canAddDueDate(log.task)"
-                                            class="text-xs px-2 py-1 rounded bg-gray-700 text-gray-400 hover:text-gray-300 hover:bg-gray-600 border border-gray-600"
-                                            title="Add due date">
-                                            + Add due date
-                                        </button>
-                                    </template>
-                                    @endif
-                                </div>
+                                        
+                                        <!-- Add Due Date Button (if no due date) -->
+                                        <template x-if="!log.task.due_date">
+                                            <button @click="addDueDate(log.task)"
+                                                x-show="canAddDueDate(log.task)"
+                                                class="text-xs px-2 py-1 rounded bg-gray-700 text-gray-400 hover:text-gray-300 hover:bg-gray-600 border border-gray-600"
+                                                title="Add due date">
+                                                + Add due date
+                                            </button>
+                                        </template>
+                                        @endif
+                                    </div>
                                 
                                 <!-- Description -->
                                 <template x-if="log.description">
@@ -342,6 +346,7 @@
                                         </a>
                                     </div>
                                 </template>
+                            </div>
                             </div>
                         </template>
                         

@@ -13,13 +13,36 @@ class ProjectActivityController extends Controller
 {
 
     // 🖼 Render Blade page
-    public function page(Project $project)
+    public function page(Project $project, Request $request)
     {
         $this->authorize('view', $project);
 
         $users = User::select('id', 'name')->get();
+        
+        // Get the task ID to highlight
+        $highlightTaskId = $request->input('highlight');
+        $initialPage = 1;
+        
+        // If we have a task to highlight, find which page it's on
+        if ($highlightTaskId) {
+            // Find all activity logs for this task, ordered by latest first
+            $taskLogPosition = ActivityLog::where('project_id', $project->id)
+                ->where('task_id', $highlightTaskId)
+                ->orderBy('created_at', 'desc')
+                ->first();
+            
+            if ($taskLogPosition) {
+                // Count how many logs are newer than this one
+                $newerLogsCount = ActivityLog::where('project_id', $project->id)
+                    ->where('created_at', '>', $taskLogPosition->created_at)
+                    ->count();
+                
+                // Calculate page (20 logs per page, page 1 = newest)
+                $initialPage = floor($newerLogsCount / 20) + 1;
+            }
+        }
 
-        return view('projects.activity', compact('project', 'users'));
+        return view('projects.activity', compact('project', 'users', 'highlightTaskId', 'initialPage'));
     }
 
 

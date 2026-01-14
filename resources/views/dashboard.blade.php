@@ -45,7 +45,7 @@
                     <div class="space-y-4">
                         @forelse($projects as $project)
                             <a href="{{ route('projects.show', $project) }}" 
-                               class="block bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-gray-600 transition-colors">
+                               class="block bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-gray-600 transition-colors hover:bg-gray-750">
                                 <div class="flex items-center justify-between mb-2">
                                     <h3 class="font-medium text-gray-200">{{ $project->name }}</h3>
                                     <span class="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">
@@ -79,9 +79,11 @@
                     
                     <div class="space-y-3">
                         @forelse($userTasks as $task)
-                            <div class="bg-gray-800 border border-gray-700 rounded-lg p-3 hover:border-gray-600 transition-colors">
+                            <a href="{{ route('projects.activity.page', ['project' => $task->project, 'highlight' => $task->id]) }}" 
+                               class="block bg-gray-800 border border-gray-700 rounded-lg p-3 hover:border-gray-600 transition-colors hover:bg-gray-750 group cursor-pointer"
+                               title="Click to view task details">
                                 <div class="flex justify-between items-start mb-2">
-                                    <h3 class="font-medium text-gray-200">{{ $task->title }}</h3>
+                                    <h3 class="font-medium text-gray-200 group-hover:text-indigo-300 transition-colors">{{ $task->title }}</h3>
                                     @if($task->due_date)
                                         <span class="text-xs px-2 py-1 rounded flex items-center gap-1
                                             {{ $task->isOverdue() ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 
@@ -97,7 +99,7 @@
                                 </div>
                                 
                                 <div class="flex items-center justify-between text-sm">
-                                    <span class="text-gray-400">
+                                    <span class="text-gray-400 group-hover:text-gray-300 transition-colors">
                                         {{ $task->project->name }}
                                     </span>
                                     <span class="text-xs px-2 py-1 rounded
@@ -107,7 +109,7 @@
                                         {{ ucfirst($task->status) }}
                                     </span>
                                 </div>
-                            </div>
+                            </a>
                         @empty
                             <div class="text-center py-8 text-gray-500">
                                 <div class="text-3xl mb-3">🎉</div>
@@ -145,6 +147,10 @@
                                     <h3 class="font-medium text-yellow-300">Tasks Due Soon</h3>
                                     <p class="text-sm text-yellow-400/80 mt-1">
                                         {{ $dueSoonTasks->count() }} task(s) due in the next 2 days.
+                                        <a href="{{ route('tasks.show', $dueSoonTasks->first()) }}" 
+                                           class="underline hover:text-yellow-300">
+                                            View first due task
+                                        </a>
                                     </p>
                                 </div>
                             </div>
@@ -164,15 +170,16 @@
                             <h3 class="font-medium text-gray-200 mb-3">{{ $projectName }}</h3>
                             <div class="space-y-2">
                                 @foreach($tasks as $task)
-                                    <div class="flex items-center justify-between p-2 bg-gray-700/50 rounded">
-                                        <span class="text-sm text-gray-300">{{ $task->title }}</span>
+                                    <a href="{{ route('tasks.show', $task) }}" 
+                                       class="flex items-center justify-between p-2 bg-gray-700/50 rounded hover:bg-gray-600/50 transition-colors group cursor-pointer">
+                                        <span class="text-sm text-gray-300 group-hover:text-indigo-300">{{ $task->title }}</span>
                                         <span class="text-xs px-2 py-1 rounded
                                             {{ $task->status === 'todo' ? 'bg-gray-600 text-gray-300' : 
                                                ($task->status === 'doing' ? 'bg-blue-500/20 text-blue-300' : 
                                                'bg-green-500/20 text-green-300') }}">
                                             {{ $task->status }}
                                         </span>
-                                    </div>
+                                    </a>
                                 @endforeach
                             </div>
                         </div>

@@ -2,12 +2,14 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
-Alpine.data('activityLog', ({projectId, users, userRole, userId, userRoleInProject}) => ({
+Alpine.data('activityLog', ({projectId, users, userRole, userId, userRoleInProject, highlightTaskId, initialPage}) => ({
     projectId,
     users,
     userRole,
     userId,
     userRoleInProject,
+    highlightTaskId,
+    initialPage,
     logs: [],
     loading: false,
     filters: { action: '' },
@@ -16,14 +18,15 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId, userRoleInProje
     newTaskDueDate: '',       // Add this
     newTaskAssignedTo: '',    // Add this
     newTaskStatus: 'todo',    // Add this (default value)
+    hasHighlighted: false,    // Track if we've highlighted
 
     init() {
         console.log('Component initialized');
-        console.log('Project ID:', this.projectId);
-        console.log('Users:', this.users);
-        console.log('First user:', this.users[0]);
-        console.log('Type of user ID:', typeof this.users[0]?.id);
-        this.fetchLogs();
+        console.log('Initial page:', this.initialPage);
+        console.log('Task to highlight:', this.highlightTaskId);
+        
+        // Load the correct page
+        this.fetchLogs(`/projects/${this.projectId}/activity/logs?page=${this.initialPage}`);
     },
 
     allowedNextStatuses(current) {
@@ -50,6 +53,42 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId, userRoleInProje
         this.pagination.prev = data.links?.prev ?? null;
         
         this.loading = false;
+
+        // Highlight task after logs are loaded (only once)
+        this.$nextTick(() => {
+            if (this.highlightTaskId && !this.hasHighlighted) {
+                setTimeout(() => {
+                    this.highlightTask(this.highlightTaskId);
+                }, 300);
+            }
+        });
+    },
+
+    highlightTask(taskId) {
+        const element = document.getElementById('task-' + taskId);
+        if (element) {
+            console.log('Found task, highlighting...');
+            
+            // Scroll to task
+            element.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+            
+            // Add highlight
+            element.classList.add('highlight-task');
+            
+            // Remove highlight after 3 seconds
+            setTimeout(() => {
+                element.classList.remove('highlight-task');
+            }, 3000);
+            
+            this.hasHighlighted = true;
+            return true;
+        }
+        
+        console.log('Task not found on current page');
+        return false;
     },
 
     async createTask() {
@@ -444,7 +483,51 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId, userRoleInProje
             console.error('Permission check failed:', error);
             return false;
         }
+    },
+
+    // Add this method to your activityLog component in app.js or in the blade file
+    scrollToTask() {
+        // Check if there's a task ID in the URL hash
+        const hash = window.location.hash;
+        console.log('Checking hash:', hash);
+        
+        if (hash && hash.startsWith('#task-')) {
+            const taskId = hash.replace('#task-', '');
+            console.log('Looking for task element with ID:', 'task-' + taskId);
+            
+            // Try multiple times with increasing delays
+            const tryToScroll = (attempt = 0) => {
+                const element = document.getElementById('task-' + taskId);
+                
+                if (element) {
+                    console.log('Found task element, scrolling...');
+                    
+                    // Scroll to the task
+                    element.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center' 
+                    });
+                    
+                    // Add highlight effect
+                    element.classList.add('highlight-task');
+                    
+                    // Remove highlight after 3 seconds
+                    setTimeout(() => {
+                        element.classList.remove('highlight-task');
+                    }, 3000);
+                } else if (attempt < 5) {
+                    // Try again after delay
+                    console.log('Task element not found, attempt', attempt + 1);
+                    setTimeout(() => tryToScroll(attempt + 1), 300 * (attempt + 1));
+                } else {
+                    console.log('Task element not found after multiple attempts');
+                }
+            };
+            
+            tryToScroll();
+        }
     }
+
 }));
 
 Alpine.start();
