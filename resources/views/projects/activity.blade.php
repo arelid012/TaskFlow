@@ -222,6 +222,7 @@
                                     </div>
                                     
                                     <!-- Due Date Indicator - CLICK TO EDIT -->
+                                    @if($userRoleInProject !== 'viewer')
                                     <template x-if="log.task.due_date">
                                         <button @click="editDueDate(log.task)"
                                             x-show="canEditDueDate(log.task)"
@@ -253,7 +254,9 @@
                                             <span x-text="formatDate(log.task.due_date)"></span>
                                         </span>
                                     </template>
+                                    
 
+                                    
                                     <!-- Add Due Date Button (if no due date) -->
                                     <template x-if="!log.task.due_date">
                                         <button @click="addDueDate(log.task)"
@@ -263,6 +266,7 @@
                                             + Add due date
                                         </button>
                                     </template>
+                                    @endif
                                 </div>
                                 
                                 <!-- Description -->
