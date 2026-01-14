@@ -23,7 +23,8 @@
         x-data="activityLog({
         projectId: {{ $project->id }},
         users: JSON.parse('{{ $projectUsers->toJson() }}'),
-        userRole: '{{ $userRoleInProject }}',
+        userRole: '{{ $user->role }}',
+        userRoleInProject: '{{ $userRoleInProject }}',
         userId: {{ auth()->id() }}
         })"
         x-init="fetchLogs()"

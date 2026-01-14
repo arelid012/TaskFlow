@@ -2,11 +2,12 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
-Alpine.data('activityLog', ({projectId, users, userRole, userId}) => ({
+Alpine.data('activityLog', ({projectId, users, userRole, userId, userRoleInProject}) => ({
     projectId,
     users,
     userRole,
     userId,
+    userRoleInProject,
     logs: [],
     loading: false,
     filters: { action: '' },
@@ -308,16 +309,53 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId}) => ({
     },
 
     canChangeStatus(task) {
-        if (!this.userRole || this.userRole === 'viewer') return false;
+        console.log('=== canChangeStatus DEBUG ===');
+        console.log('Global role:', this.userRole);
+        console.log('Project role:', this.userRoleInProject);
+        
+        // Viewers cannot change status
+        if (this.userRoleInProject === 'viewer') {
+            return false;
+        }
         
         // 1. Task creator can change status
-        if (task.created_by === this.userId) return true;
+        if (task.created_by === this.userId) {
+            console.log('✓ Can change: Task creator');
+            return true;
+        }
         
         // 2. Assignee can change status
-        if (task.assigned_to === this.userId) return true;
+        if (task.assigned_to === this.userId) {
+            console.log('✓ Can change: Task assignee');
+            return true;
+        }
         
-        // 3. Leads, managers, admins can change any status
-        return ['lead', 'manager', 'admin'].includes(this.userRole);
+        // 3. Admins can change any status
+        if (this.userRole === 'admin') {
+            console.log('✓ Can change: Admin');
+            return true;
+        }
+        
+        // 4. Global managers can change any status
+        if (this.userRole === 'manager') {
+            console.log('✓ Can change: Global manager');
+            return true;
+        }
+        
+        // 5. Project owners can change any status
+        if (this.userRoleInProject === 'owner') {
+            console.log('✓ Can change: Project owner');
+            return true;
+        }
+        
+        // 6. Project managers/leads can change any status
+        if (this.userRoleInProject === 'manager' || this.userRoleInProject === 'lead') {
+            console.log('✓ Can change: Project manager/lead');
+            return true;
+        }
+        
+        console.log('✗ Cannot change status');
+        return false;
     },
 
     canAssignTask(task) {
@@ -332,7 +370,7 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId}) => ({
     },
 
     canAddDueDate(task) {
-        // 1. Admins/Managers can always edit
+        // 1. Admins/Global managers can always edit
         if (this.userRole === 'admin' || this.userRole === 'manager') {
             return true;
         }
@@ -347,14 +385,17 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId}) => ({
             return true;
         }
         
-        // 4. Project owner can edit any task in their project
-        if (task.project && task.project.created_by === this.userId) {
+        // 4. Project owners can edit any task
+        if (this.userRoleInProject === 'owner') {
             return true;
         }
         
-        // 5. Project leads/managers (pivot role) can edit
-        // Need to check userRoleInProject from your data
-        return ['lead', 'manager'].includes(this.userRoleInProject);
+        // 5. Project managers/leads can edit
+        if (this.userRoleInProject === 'manager' || this.userRoleInProject === 'lead') {
+            return true;
+        }
+        
+        return false;
     },
 
     canDeleteTask(task, log) {

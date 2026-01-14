@@ -86,10 +86,16 @@ class Project extends Model
 
     public function getUserRole($userId)
     {
+        // 1. First check if user is the project owner
+        if ($this->created_by == $userId) {
+            return 'owner';
+        }
+        
+        // 2. If not owner, check pivot table for project membership
         return $this->members()
             ->where('user_id', $userId)
             ->first()
             ?->pivot
-            ?->role ?? null;
+            ?->role ?? null; // Returns: member, viewer, lead, manager, or null
     }
 }
