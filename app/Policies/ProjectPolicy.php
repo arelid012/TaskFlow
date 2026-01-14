@@ -50,7 +50,7 @@ class ProjectPolicy
                 $project->created_by === $user->id ||
                 $project->members()
                     ->where('user_id', $user->id)
-                    ->whereIn('project_user.role', ['manager', 'lead', 'senior']) // FIXED
+                    ->whereIn('project_user.role', ['manager', 'lead']) // FIXED
                     ->exists());
     }
 

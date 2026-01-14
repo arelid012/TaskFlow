@@ -29,7 +29,8 @@ class ProjectActivityController extends Controller
 
         $query = ActivityLog::with([
             'user:id,name',
-            'task:id,title,status,assigned_to,due_date,created_by,project_id'
+            'task:id,title,status,assigned_to,due_date,created_by,project_id',
+            'task.project:id,created_by'
         ])->where('project_id', $project->id);
 
         if ($request->filled('action')) {

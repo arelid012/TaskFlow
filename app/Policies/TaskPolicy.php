@@ -35,29 +35,34 @@ class TaskPolicy
         // Get user's role IN THIS PROJECT (pivot role)
         $userRoleInProject = $task->project->members()
             ->where('user_id', $user->id)
-            ->value('project_user.role'); // FIXED
+            ->value('project_user.role');
         
         // 0. VIEWERS CANNOT UPDATE ANYTHING
         if ($userRoleInProject === 'viewer') {
             return false;
         }
         
-        // 1. Admins and managers (global) can update
+        // 1. Project owners can always update (check created_by, not pivot)
+        if ($task->project->created_by === $user->id) {
+            return true;
+        }
+        
+        // 2. Admins and managers (global) can update
         if (in_array($user->role, ['admin', 'manager'])) {
             return true;
         }
         
-        // 2. Task creator can update (if not viewer)
+        // 3. Task creator can update (if not viewer)
         if ($task->created_by === $user->id) {
             return true;
         }
         
-        // 3. Assignee can update their own tasks
+        // 4. Assignee can update their own tasks
         if ($task->assigned_to === $user->id) {
             return true;
         }
         
-        // 4. Project leads/managers (pivot) can update any
+        // 5. Project leads/managers (pivot) can update any
         return in_array($userRoleInProject, ['lead', 'manager', 'owner']);
     }
 

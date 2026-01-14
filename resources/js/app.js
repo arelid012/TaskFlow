@@ -320,6 +320,9 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId}) => ({
     },
 
     canChangeStatus(task) {
+        // Project owners can change any status
+        if (this.userId === task.project?.created_by) return true;
+        
         if (!this.userRole || this.userRole === 'viewer') return false;
         
         // Assignee can change their own task status
@@ -345,36 +348,28 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId}) => ({
     },
 
     canDeleteTask(task, log) {
-        console.log('=== DELETE PERMISSION CHECK ===');
-        console.log('Task:', task);
-        console.log('Log user:', log.user);
+        // 4 WAYS TO DELETE:
+        // 1. Admin
+        // 2. Task creator (if task.created_by exists)
+        // 3. Project owner
+        // 4. Log creator (fallback - if log.user.id matches)
         
-        // 1. Check if user is task creator
-        if (task.created_by && task.created_by === this.userId) {
-            console.log('✓ User is task creator');
+        // 1. Admin OR Manager can delete
+        if (this.userRole === 'admin' || this.userRole === 'manager') {
+            console.log('✓ Delete allowed: User is admin/manager');
             return true;
         }
         
-        // 2. Check if user created the activity log (fallback)
-        if (log.user && log.user.id === this.userId) {
-            console.log('✓ User created this activity log');
-            return true;
-        }
+        // 2. Task creator
+        if (task.created_by && task.created_by === this.userId) return true;
         
-        // 3. Check if user is admin
-        if (this.userRole === 'admin') {
-            console.log('✓ User is admin');
-            return true;
-        }
+        // 3. Project owner
+        if (task.project && task.project.created_by === this.userId) return true;
         
-        // 4. Check if user is project owner (need project_id in task)
-        // This is optional but good to have
-        if (task.project_id && task.project_created_by === this.userId) {
-            console.log('✓ User is project owner');
-            return true;
-        }
+        // 4. Log creator (for tasks where created_by is null)
+        // This is a fallback - check who created the activity log
+        if (log && log.user && log.user.id === this.userId) return true;
         
-        console.log('✗ User cannot delete this task');
         return false;
     },
 
