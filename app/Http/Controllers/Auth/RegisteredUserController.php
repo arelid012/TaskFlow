@@ -39,12 +39,19 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'role' => 'user', // Make sure to set a default role
         ]);
 
+        // Fire the registered event (this triggers email verification if configured)
         event(new Registered($user));
 
+        // Log the user in
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        // Redirect to verification notice page instead of dashboard
+        return redirect()->route('verification.notice');
+        
+        // OR if you want to redirect to dashboard but show verification prompt:
+        // return redirect(route('dashboard', absolute: false));
     }
 }

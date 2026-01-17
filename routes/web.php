@@ -9,7 +9,6 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProjectMemberController;
 
-
 Route::get('/', function () {
     return view('welcome');
 });
@@ -19,16 +18,29 @@ Route::get('/test-logging', function() {
     return "Check storage/logs/laravel.log";
 });
 
-Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('dashboard');
-
 Route::middleware('auth')->group(function () {
-
-    // Profile
+    // Profile (accessible even if not verified)
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Email Verification Routes
+    Route::get('/verify-email', [\App\Http\Controllers\Auth\EmailVerificationPromptController::class, '__invoke'])
+        ->name('verification.notice');
+    
+    Route::get('/verify-email/{id}/{hash}', [\App\Http\Controllers\Auth\VerifyEmailController::class, '__invoke'])
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
+    
+    Route::post('/email/verification-notification', [\App\Http\Controllers\Auth\EmailVerificationNotificationController::class, 'store'])
+        ->middleware('throttle:6,1')
+        ->name('verification.send');
+});
+
+// Routes that REQUIRE email verification
+Route::middleware(['auth', 'verified'])->group(function () {
+    // Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Projects
     Route::resource('projects', ProjectController::class)->except(['show']);
@@ -67,12 +79,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/tasks/{task}/due-date', [TaskController::class, 'updateDueDate'])
     ->name('tasks.update-due-date');
 
-    // In web.php, add this with your other routes:
     // CHANGE ONLY THIS LINE in web.php:
     Route::get('/tasks/{task}', function (App\Models\Task $task) {
         // Add ?highlight=task_id instead of #task-id
         return redirect()->route('projects.activity.page', $task->project) . '?highlight=' . $task->id;
-    })->name('tasks.show')->middleware('auth');
+    })->name('tasks.show');
 
     // Project Activity
     Route::get('/projects/{project}/activity/logs', [ProjectActivityController::class, 'index'])
@@ -80,7 +91,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/projects/{project}/activity', [ProjectActivityController::class, 'page'])
         ->name('projects.activity.page');
-
 
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'index'])
@@ -112,12 +122,6 @@ Route::middleware('auth')->group(function () {
         Route::put('/members/{user}/role', [ProjectMemberController::class, 'updateRole'])
             ->name('projects.members.update-role');
     });
-
-    
-
-    
 });
-
-
 
 require __DIR__.'/auth.php';
