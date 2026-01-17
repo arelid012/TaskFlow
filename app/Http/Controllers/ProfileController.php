@@ -6,8 +6,10 @@ use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
+use Illuminate\Validation\Rules\Password; 
 
 class ProfileController extends Controller
 {
@@ -26,15 +28,49 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        // Get validated data
+        $validated = $request->validated();
+        
+        // Update profile information
+        $request->user()->fill([
+            'name' => $validated['name'],
+            'email' => $validated['email']
+        ]);
 
         if ($request->user()->isDirty('email')) {
             $request->user()->email_verified_at = null;
         }
 
+        // Update password if provided
+        if (isset($validated['password'])) {
+            $request->user()->password = Hash::make($validated['password']);
+        }
+
         $request->user()->save();
 
+        // Determine which status message to show
+        if (isset($validated['password'])) {
+            return Redirect::route('profile.edit')->with('status', 'password-updated');
+        }
+
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
+    }
+
+    /**
+     * Update the user's password.
+     */
+    public function updatePassword(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'confirmed', Password::defaults()],
+        ]);
+
+        $request->user()->update([
+            'password' => Hash::make($validated['password']),
+        ]);
+
+        return Redirect::route('profile.edit')->with('status', 'password-updated');
     }
 
     /**
