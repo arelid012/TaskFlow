@@ -18,6 +18,10 @@ Route::get('/test-logging', function() {
     return "Check storage/logs/laravel.log";
 });
 
+Route::get('/dashboard/test-tasks', [DashboardController::class, 'testTasks'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.test-tasks');
+
 Route::middleware('auth')->group(function () {
     // Profile (accessible even if not verified)
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

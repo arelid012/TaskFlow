@@ -75,4 +75,12 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         $this->notify(new CustomVerifyEmail);
     }
+
+    // public function memberProjects()
+    // {
+    //     // Assuming you have a project_members table
+    //     return $this->belongsToMany(Project::class, 'project_members', 'user_id', 'project_id');
+    // }
+
+    
 }
