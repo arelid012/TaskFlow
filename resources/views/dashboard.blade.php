@@ -238,7 +238,7 @@
                                 {{ $userTasks->count() }} pending
                             </span>
                             @if($userTasks->count() > 0)
-                                <a href="{{ route('projects.index') }}" 
+                                <a href="{{ route('tasks.index') }}"
                                    class="text-sm text-indigo-400 hover:text-indigo-300 font-medium">
                                     View all →
                                 </a>

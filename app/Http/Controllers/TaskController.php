@@ -306,4 +306,105 @@ class TaskController extends Controller
         return back()->with('success', 'Task deleted successfully');
     }
 
+    public function allTasks(Request $request)
+    {
+        $user = auth()->user();
+        
+        // Create a separate query for counts (without pagination)
+        $countQuery = Task::where(function($q) use ($user) {
+            $q->where('assigned_to', $user->id)
+            ->orWhere('created_by', $user->id);
+        });
+        
+        // Apply filters to count query
+        if ($request->filled('status')) {
+            $countQuery->where('status', $request->status);
+        }
+        
+        if ($request->filled('project')) {
+            $countQuery->where('project_id', $request->project);
+        }
+        
+        if ($user->role !== 'admin' && $user->role !== 'manager') {
+            $accessibleProjectIds = $user->projects()->pluck('projects.id')->toArray();
+            $countQuery->whereIn('project_id', $accessibleProjectIds);
+        }
+        
+        if ($request->filled('due_from')) {
+            $countQuery->whereDate('due_date', '>=', $request->due_from);
+        }
+        
+        if ($request->filled('due_to')) {
+            $countQuery->whereDate('due_date', '<=', $request->due_to);
+        }
+        
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $countQuery->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                ->orWhereHas('project', function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%");
+                });
+            });
+        }
+        
+        // Get total counts for each status
+        $totalCount = $countQuery->count();
+        $todoCount = $countQuery->clone()->where('status', 'todo')->count();
+        $doingCount = $countQuery->clone()->where('status', 'doing')->count();
+        $doneCount = $countQuery->clone()->where('status', 'done')->count();
+        
+        // Now create the paginated query for display
+        $query = Task::with(['project:id,name', 'assignee:id,name'])
+                    ->where(function($q) use ($user) {
+                        $q->where('assigned_to', $user->id)
+                        ->orWhere('created_by', $user->id);
+                    });
+        
+        // Apply same filters to paginated query
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        
+        if ($request->filled('project')) {
+            $query->where('project_id', $request->project);
+        }
+        
+        if ($user->role !== 'admin' && $user->role !== 'manager') {
+            $accessibleProjectIds = $user->projects()->pluck('projects.id')->toArray();
+            $query->whereIn('project_id', $accessibleProjectIds);
+        }
+        
+        if ($request->filled('due_from')) {
+            $query->whereDate('due_date', '>=', $request->due_from);
+        }
+        
+        if ($request->filled('due_to')) {
+            $query->whereDate('due_date', '<=', $request->due_to);
+        }
+        
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                ->orWhereHas('project', function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%");
+                });
+            });
+        }
+        
+        // Get ONLY the user's projects for filter dropdown
+        $userProjects = $user->projects()
+            ->whereHas('tasks', function($q) use ($user) {
+                $q->where('assigned_to', $user->id)
+                ->orWhere('created_by', $user->id);
+            })
+            ->orderBy('name')
+            ->get(['id', 'name']);
+        
+        $tasks = $query->latest()->paginate(20)->withQueryString();
+        
+        return view('tasks.index', compact('tasks', 'userProjects', 'totalCount', 'todoCount', 'doingCount', 'doneCount'));
+    }
+
 }

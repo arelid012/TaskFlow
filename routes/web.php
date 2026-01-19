@@ -86,9 +86,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/tasks/{task}/due-date', [TaskController::class, 'updateDueDate'])
     ->name('tasks.update-due-date');
 
-    // CHANGE ONLY THIS LINE in web.php:
+    Route::get('/tasks', [TaskController::class, 'allTasks'])
+    ->name('tasks.index');
+
     Route::get('/tasks/{task}', function (App\Models\Task $task) {
-        // Add ?highlight=task_id instead of #task-id
         return redirect()->route('projects.activity.page', $task->project) . '?highlight=' . $task->id;
     })->name('tasks.show');
 
