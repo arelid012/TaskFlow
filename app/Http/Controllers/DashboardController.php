@@ -16,8 +16,8 @@ class DashboardController extends Controller
         
         Log::info('Dashboard loaded for user: ' . $user->id . ' - ' . $user->name . ' (Role: ' . $user->role . ')');
 
-        // FIX 1: Get user's projects - SIMPLIFIED VERSION
-        if ($user->role === 'admin' || $user->role === 'manager') {
+    // Get user's projects - FIXED VERSION
+    if ($user->role === 'admin' || $user->role === 'manager') {
         // Admins/Managers see all projects
         $projects = Project::withCount([
             'tasks' => function ($query) {
@@ -28,16 +28,23 @@ class DashboardController extends Controller
         ->take(5)
         ->get();
     } else {
-        // Regular users see projects they OWN (created_by)
-        $projects = Project::where('created_by', $user->id)
-            ->withCount([
-                'tasks' => function ($query) {
-                    $query->where('status', '!=', 'done');
-                }
-            ])
-            ->latest()
-            ->take(5)
-            ->get();
+        // Regular users see projects they OWN OR are MEMBERS of
+        $projects = Project::where(function($query) use ($user) {
+            // Projects they created
+            $query->where('created_by', $user->id)
+                  // OR projects they're members of in project_user table
+                  ->orWhereHas('members', function($q) use ($user) {
+                      $q->where('user_id', $user->id);
+                  });
+        })
+        ->withCount([
+            'tasks' => function ($query) {
+                $query->where('status', '!=', 'done');
+            }
+        ])
+        ->latest()
+        ->take(5)
+        ->get();
     }
 
         // FIX 2: Get user's assigned tasks
