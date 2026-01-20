@@ -16,48 +16,69 @@ class DashboardController extends Controller
         
         Log::info('Dashboard loaded for user: ' . $user->id . ' - ' . $user->name . ' (Role: ' . $user->role . ')');
 
-    // Get user's projects - FIXED VERSION
-    if ($user->role === 'admin' || $user->role === 'manager') {
-        // Admins/Managers see all projects
-        $projects = Project::withCount([
-            'tasks' => function ($query) {
-                $query->where('status', '!=', 'done');
-            }
-        ])
-        ->latest()
-        ->take(5)
-        ->get();
-    } else {
-        // Regular users see projects they OWN OR are MEMBERS of
-        $projects = Project::where(function($query) use ($user) {
-            // Projects they created
-            $query->where('created_by', $user->id)
-                  // OR projects they're members of in project_user table
-                  ->orWhereHas('members', function($q) use ($user) {
-                      $q->where('user_id', $user->id);
-                  });
-        })
-        ->withCount([
-            'tasks' => function ($query) {
-                $query->where('status', '!=', 'done');
-            }
-        ])
-        ->latest()
-        ->take(5)
-        ->get();
-    }
+        // Get user's projects - FIXED VERSION
+        if ($user->role === 'admin' || $user->role === 'manager') {
+            // Admins/Managers see all projects
+            $projects = Project::withCount([
+                'tasks' => function ($query) {
+                    $query->where('status', '!=', 'done');
+                }
+            ])
+            ->latest()
+            ->take(5)
+            ->get();
+        } else {
+            // Regular users see projects they OWN OR are MEMBERS of
+            $projects = Project::where(function($query) use ($user) {
+                // Projects they created
+                $query->where('created_by', $user->id)
+                    // OR projects they're members of in project_user table
+                    ->orWhereHas('members', function($q) use ($user) {
+                        $q->where('user_id', $user->id);
+                    });
+            })
+            ->withCount([
+                'tasks' => function ($query) {
+                    $query->where('status', '!=', 'done');
+                }
+            ])
+            ->latest()
+            ->take(5)
+            ->get();
+        }
 
         // FIX 2: Get user's assigned tasks
-        $userTasks = Task::where('assigned_to', $user->id)
-            ->with(['project', 'assignee'])
-            ->where('status', '!=', 'done')
-            ->latest()
-            ->take(8)
-            ->get();
+         // ===== OPTION B: Get user's assigned tasks (Active + Recent Completed) =====
+        // Get active (non-done) tasks - INCLUDING TASKS YOU CREATED
+        $userActiveTasks = Task::where(function($query) use ($user) {
+            $query->where('assigned_to', $user->id)
+                ->orWhere('created_by', $user->id); // ADD THIS LINE
+        })
+        ->with(['project', 'assignee'])
+        ->where('status', '!=', 'done')
+        ->latest()
+        ->take(6) // Show 6 active tasks
+        ->get();
+
+        // Get recently completed tasks (last 2 completed) - INCLUDING TASKS YOU CREATED
+        $userRecentCompleted = Task::where(function($query) use ($user) {
+            $query->where('assigned_to', $user->id)
+                ->orWhere('created_by', $user->id); // ADD THIS LINE
+        })
+        ->with(['project', 'assignee'])
+        ->where('status', 'done')
+        ->latest()
+        ->take(2) // Show 2 recently completed
+        ->get();
+
+        // Merge both collections
+        $userTasks = $userActiveTasks->merge($userRecentCompleted);
         
         // DEBUG: More detailed logging
         Log::info('User ID: ' . $user->id);
-        Log::info('Found ' . $userTasks->count() . ' pending tasks');
+        Log::info('Found ' . $userActiveTasks->count() . ' active tasks'); // FIXED
+        Log::info('Found ' . $userRecentCompleted->count() . ' recently completed tasks'); // FIXED
+        Log::info('Total tasks to display: ' . $userTasks->count()); // ADDED
         
         if ($userTasks->isEmpty()) {
             // Check what tasks exist in the database
@@ -75,42 +96,58 @@ class DashboardController extends Controller
             }
         }
 
-        // Get overdue tasks
-        $overdueTasks = Task::where('assigned_to', $user->id)
-            ->whereDate('due_date', '<', Carbon::today())
-            ->where('status', '!=', 'done')
-            ->with('project')
-            ->get();
+        // Get overdue tasks - include tasks you created
+        $overdueTasks = Task::where(function($query) use ($user) {
+            $query->where('assigned_to', $user->id)
+                ->orWhere('created_by', $user->id); // ADD THIS
+        })
+        ->whereDate('due_date', '<', Carbon::today())
+        ->where('status', '!=', 'done')
+        ->with('project')
+        ->get();
 
-        // Get due soon tasks
-        $dueSoonTasks = Task::where('assigned_to', $user->id)
-            ->whereDate('due_date', '>=', Carbon::today())
-            ->whereDate('due_date', '<=', Carbon::today()->addDays(2))
-            ->where('status', '!=', 'done')
-            ->with('project')
-            ->get();
+        // Get due soon tasks - include tasks you created
+        $dueSoonTasks = Task::where(function($query) use ($user) {
+            $query->where('assigned_to', $user->id)
+                ->orWhere('created_by', $user->id); // ADD THIS
+        })
+        ->whereDate('due_date', '>=', Carbon::today())
+        ->whereDate('due_date', '<=', Carbon::today()->addDays(2))
+        ->where('status', '!=', 'done')
+        ->with('project')
+        ->get();
 
-        // Group tasks by project - only for display if we have tasks
+        // Group tasks by project - only ACTIVE tasks for this view
         $tasksByProject = collect();
-        if ($userTasks->count() > 0) {
-            $tasksByProject = Task::with(['project', 'assignee'])
-                ->where('assigned_to', $user->id)
-                ->where('status', '!=', 'done')
-                ->get()
-                ->groupBy(function ($task) {
-                    return $task->project ? $task->project->name : 'Uncategorized';
-                });
+        if ($userActiveTasks->count() > 0) {
+            $tasksByProject = Task::where(function($query) use ($user) {
+                $query->where('assigned_to', $user->id)
+                    ->orWhere('created_by', $user->id); // ADD THIS
+            })
+            ->with(['project', 'assignee'])
+            ->where('status', '!=', 'done')
+            ->get()
+            ->groupBy(function ($task) {
+                return $task->project ? $task->project->name : 'Uncategorized';
+            });
         }
 
-        // Calculate stats
-        $totalTasksAssigned = Task::where('assigned_to', $user->id)->count();
-        $completedTasks = Task::where('assigned_to', $user->id)
-            ->where('status', 'done')
-            ->count();
+        // Calculate stats - include tasks you created
+        $totalTasksAssigned = Task::where(function($query) use ($user) {
+            $query->where('assigned_to', $user->id)
+                ->orWhere('created_by', $user->id); // ADD THIS
+        })->count();
+
+        $completedTasks = Task::where(function($query) use ($user) {
+            $query->where('assigned_to', $user->id)
+                ->orWhere('created_by', $user->id); // ADD THIS
+        })
+        ->where('status', 'done')
+        ->count();
             
         $stats = [
             'total_projects' => $projects->count(),
-            'pending_tasks' => $userTasks->count(),
+            'pending_tasks' => $userActiveTasks->count(), // Only count active for "pending"
             'overdue_tasks' => $overdueTasks->count(),
             'due_soon_tasks' => $dueSoonTasks->count(),
             'total_tasks' => $totalTasksAssigned,
@@ -125,7 +162,9 @@ class DashboardController extends Controller
             'overdueTasks',
             'dueSoonTasks',
             'tasksByProject',
-            'stats'
+            'stats',
+            'userActiveTasks', // Pass this separately for accurate counts
+            'userRecentCompleted' // Pass this separately if needed
         ));
     }
     

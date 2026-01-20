@@ -235,7 +235,7 @@
                         </div>
                         <div class="flex items-center gap-4">
                             <span class="text-sm text-gray-400">
-                                {{ $userTasks->count() }} pending
+                                {{ $userActiveTasks->count() }} pending
                             </span>
                             @if($userTasks->count() > 0)
                                 <a href="{{ route('tasks.index') }}"
@@ -247,22 +247,35 @@
                     </div>
                     
                     <!-- TASKS DISPLAY - This was missing from your code! -->
+                    <!-- In the "My Tasks" section -->
                     <div class="space-y-3">
                         @forelse($userTasks as $task)
                             <a href="{{ route('projects.activity.page', ['project' => $task->project, 'highlight' => $task->id]) }}" 
-                               class="block bg-gray-800 border border-gray-700 rounded-lg p-3 hover:border-gray-600 transition-colors hover:bg-gray-750 group cursor-pointer"
-                               title="Click to view task details">
-                                <div class="flex justify-between items-start mb-2">
-                                    <h3 class="font-medium text-gray-200 group-hover:text-indigo-300 transition-colors">{{ $task->title }}</h3>
-                                    @if($task->due_date)
+                            class="block bg-gray-800 border {{ $task->status === 'done' ? 'border-green-500/20 opacity-80' : 'border-gray-700' }} rounded-lg p-3 hover:border-gray-600 transition-colors hover:bg-gray-750 group cursor-pointer"
+                            title="Click to view task details">
+                                
+                                @if($task->status === 'done')
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="text-green-500 text-sm flex items-center gap-1">
+                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                            </svg>
+                                            Completed {{ $task->updated_at->diffForHumans() }}
+                                        </span>
+                                    </div>
+                                @endif
+                                
+                                <div class="flex justify-between items-start {{ $task->status === 'done' ? 'mb-1' : 'mb-2' }}">
+                                    <h3 class="font-medium {{ $task->status === 'done' ? 'text-gray-400 line-through' : 'text-gray-200' }} group-hover:text-indigo-300 transition-colors">
+                                        {{ $task->title }}
+                                    </h3>
+                                    @if($task->due_date && $task->status !== 'done')
                                         <span class="text-xs px-2 py-1 rounded flex items-center gap-1
                                             {{ $task->isOverdue() ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 
-                                               ($task->isDueSoon() ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 
-                                               'bg-blue-500/20 text-blue-400 border border-blue-500/30') }}"
+                                            ($task->isDueSoon() ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 
+                                            'bg-blue-500/20 text-blue-400 border border-blue-500/30') }}"
                                             title="Due: {{ $task->due_date->format('M d, Y') }}">
-                                            <span>{{ $task->status === 'done' ? '✅' : 
-                                                   ($task->isOverdue() ? '🔴' : 
-                                                   ($task->isDueSoon() ? '🟡' : '🟢')) }}</span>
+                                            <span>{{ $task->isOverdue() ? '🔴' : ($task->isDueSoon() ? '🟡' : '🟢') }}</span>
                                             <span>{{ $task->due_date->format('M d') }}</span>
                                         </span>
                                     @endif
@@ -274,8 +287,8 @@
                                     </span>
                                     <span class="text-xs px-2 py-1 rounded
                                         {{ $task->status === 'todo' ? 'bg-gray-700 text-gray-300' : 
-                                           ($task->status === 'doing' ? 'bg-blue-500/20 text-blue-300' : 
-                                           'bg-green-500/20 text-green-300') }}">
+                                        ($task->status === 'doing' ? 'bg-blue-500/20 text-blue-300' : 
+                                        'bg-green-500/20 text-green-300') }}">
                                         {{ ucfirst($task->status) }}
                                     </span>
                                 </div>
