@@ -25,7 +25,7 @@
         users: JSON.parse('{{ $projectUsers->toJson() }}'),
         userRole: '{{ $user->role }}',
         userRoleInProject: '{{ $userRoleInProject }}',
-        userId: {{ auth()->id() }},  <!-- ADD COMMA HERE -->
+        userId: {{ auth()->id() }},  
         highlightTaskId: {{ $highlightTaskId ?? 'null' }},
         initialPage: {{ $initialPage ?? 1 }}
         })"

@@ -90,6 +90,10 @@ class TaskPolicy
 
     public function assign(User $user, Task $task): bool
     {
+        if ($task->project->created_by === $user->id) {
+            return true;
+        }
+
         // User must be a project member to assign tasks
         $isProjectMember = $task->project->members()
             ->where('user_id', $user->id)

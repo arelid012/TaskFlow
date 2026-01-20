@@ -9,7 +9,12 @@ class ProjectPolicy
 {
     public function createTask(User $user, Project $project): bool
     {
-        // User must be a project member to create tasks
+        // Project creator can always create tasks
+        if ($project->created_by === $user->id) {
+            return true;
+        }
+        
+        // Also check project_user table members
         return $project->members()->where('user_id', $user->id)->exists();
     }
 
