@@ -175,10 +175,10 @@
                                             <svg class="w-4 h-4 {{ $task->isOverdue() ? 'text-red-600' : 'text-indigo-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                                             </svg>
-                                        </div>
+                                        </div>   
                                     </div>
                                     <div class="ml-3">
-                                        <a href="{{ route('tasks.show', $task) }}" class="text-gray-900 font-medium hover:text-indigo-600">
+                                        <a href="{{ route('projects.activity.page', $task->project) }}?highlight={{ $task->id }}"  class="text-gray-900 font-medium hover:text-indigo-600"> 
                                             {{ $task->title }}
                                         </a>
                                         <div class="flex items-center text-sm text-gray-500 mt-1">
@@ -230,7 +230,7 @@
                             <!-- Actions -->
                             <div class="col-span-2">
                                 <div class="flex items-center justify-end space-x-2">
-                                    <a href="{{ route('tasks.show', $task) }}" 
+                                    <a href="{{ route('projects.activity.page', $task->project) }}?highlight={{ $task->id }}" 
                                        class="text-gray-400 hover:text-indigo-600 p-1 rounded hover:bg-gray-100"
                                        title="View Details">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
