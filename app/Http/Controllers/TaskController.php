@@ -310,6 +310,8 @@ class TaskController extends Controller
     {
         $user = auth()->user();
         
+        \Illuminate\Support\Facades\Log::info('AllTasks page accessed by user ID: ' . $user->id);
+        
         // Create a separate query for counts (without pagination)
         $countQuery = Task::where(function($q) use ($user) {
             $q->where('assigned_to', $user->id)
@@ -325,8 +327,16 @@ class TaskController extends Controller
             $countQuery->where('project_id', $request->project);
         }
         
+        // FIX: Check project access correctly
         if ($user->role !== 'admin' && $user->role !== 'manager') {
-            $accessibleProjectIds = $user->projects()->pluck('projects.id')->toArray();
+            // Get projects user created OR is a member of
+            $accessibleProjectIds = Project::where(function($q) use ($user) {
+                $q->where('created_by', $user->id)
+                ->orWhereHas('members', function($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                });
+            })->pluck('id')->toArray();
+            
             $countQuery->whereIn('project_id', $accessibleProjectIds);
         }
         
@@ -370,8 +380,16 @@ class TaskController extends Controller
             $query->where('project_id', $request->project);
         }
         
+        // FIX: Apply same project access restriction
         if ($user->role !== 'admin' && $user->role !== 'manager') {
-            $accessibleProjectIds = $user->projects()->pluck('projects.id')->toArray();
+            // Use the same accessibleProjectIds
+            $accessibleProjectIds = Project::where(function($q) use ($user) {
+                $q->where('created_by', $user->id)
+                ->orWhereHas('members', function($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                });
+            })->pluck('id')->toArray();
+            
             $query->whereIn('project_id', $accessibleProjectIds);
         }
         
@@ -393,16 +411,27 @@ class TaskController extends Controller
             });
         }
         
-        // Get ONLY the user's projects for filter dropdown
-        $userProjects = $user->projects()
-            ->whereHas('tasks', function($q) use ($user) {
-                $q->where('assigned_to', $user->id)
-                ->orWhere('created_by', $user->id);
-            })
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        // FIX: Get user's projects correctly
+        $userProjects = Project::where(function($q) use ($user) {
+            $q->where('created_by', $user->id)
+            ->orWhereHas('members', function($q) use ($user) {
+                $q->where('user_id', $user->id);
+            });
+        })
+        ->whereHas('tasks', function($q) use ($user) {
+            $q->where('assigned_to', $user->id)
+            ->orWhere('created_by', $user->id);
+        })
+        ->orderBy('name')
+        ->get(['id', 'name']);
         
         $tasks = $query->latest()->paginate(20)->withQueryString();
+        
+        // Debug logging
+        Log::info('Tasks found for user ' . $user->id . ': ' . $tasks->count());
+        foreach ($tasks as $task) {
+            Log::info('Task: ' . $task->title . ' | Assigned to: ' . $task->assigned_to . ' | Created by: ' . $task->created_by . ' | Project: ' . ($task->project ? $task->project->name : 'None'));
+        }
         
         return view('tasks.index', compact('tasks', 'userProjects', 'totalCount', 'todoCount', 'doingCount', 'doneCount'));
     }
