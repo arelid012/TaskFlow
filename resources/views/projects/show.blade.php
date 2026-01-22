@@ -93,7 +93,7 @@
                                     </div>
                                     
                                     <div class="flex items-center gap-2">
-                                        <a href="{{ route('projects.activity.page', $project) }}" 
+                                        <a href="{{ route('projects.activity.page', $task->project) }}?highlight={{ $task->id }}"
                                            class="text-indigo-400 hover:text-indigo-300 text-xs">
                                             View Activity →
                                         </a>
@@ -150,7 +150,7 @@
                                     </div>
                                     
                                     <div class="flex items-center gap-2">
-                                        <a href="{{ route('projects.activity.page', $project) }}" 
+                                        <a href="{{ route('projects.activity.page', $task->project) }}?highlight={{ $task->id }}"
                                             class="text-indigo-400 hover:text-indigo-300 text-xs">
                                             View Activity →
                                         </a>
@@ -201,7 +201,7 @@
                                     </div>
                                     
                                     <div class="flex items-center gap-2">
-                                        <a href="{{ route('projects.activity.page', $project) }}" 
+                                        <a href="{{ route('projects.activity.page', $task->project) }}?highlight={{ $task->id }}"
                                         class="text-indigo-400 hover:text-indigo-300 text-xs">
                                             View Activity →
                                         </a>
