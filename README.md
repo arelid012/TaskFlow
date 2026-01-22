@@ -1,96 +1,43 @@
-# TaskFlow – Team Task Management System
+# TaskFlow 🚀
 
-TaskFlow is a Trello-like task management system built with Laravel that enables small teams to collaborate on projects with clear role-based permissions.  
-This project is intended for learning and portfolio purposes and demonstrates real-world backend development practices.
+**TaskFlow** is a professional project and task management system built with **Laravel 12**, **Blade**, and **Alpine.js**. It supports **role-based access**, **task workflows**, and **activity tracking**, making it a mini-Jira/Trello style app.  
 
----
-
-## Project Goals
-
-- Build a real-world Laravel application using best practices
-- Implement authentication and role-based authorization
-- Design and manage relational databases
-- Follow a clean Git and GitHub workflow
-- Create a resume-ready portfolio project
+This project demonstrates real-world full-stack development, backend-enforced business logic, and SPA-like frontend interactivity.
 
 ---
 
 ## Features
 
-### User Management
-- User registration and login
-- Role-based access control (Admin, Manager, User)
-
-### Project Management
-- Create and manage projects
-- Invite users to projects
-- View projects assigned to the authenticated user
-
-### Task Management
-- Create tasks within projects
-- Assign tasks to users
-- Task status workflow (To Do → In Progress → Done)
-- Task priority (Low, Medium, High)
-- Due dates for tasks
-
-### Collaboration
-- Comment system for tasks
-- Activity logs for key actions (create, update, delete)
-
-### Authorization & Security
-- Only Admins can delete projects
-- Only Managers and Admins can create tasks
-- Users can only update tasks assigned to them
+- **Authentication & Roles:** Admin, Manager, User; secure role-based access via Laravel Policies  
+- **Project Management:** CRUD projects, ownership & member roles, secure visibility rules  
+- **Task Management:** Tasks belong to projects, assignable to members, status workflow (`todo → doing → done`), due dates  
+- **Activity Logging:** Centralized logging for all actions, paginated feed with human-readable timestamps  
+- **Notifications:** Database notifications for task assignments 
+- **Frontend UX:** Reactive activity feed, inline editing, loading states, color-coded action badges, permission-aware UI  
 
 ---
 
 ## Tech Stack
 
-- Backend: Laravel 11 (PHP)
-- Frontend: Blade Templates + Tailwind CSS
-- Authentication: Laravel Breeze
-- Database: MySQL (designed to be compatible with PostgreSQL)
-- Version Control: Git & GitHub
-
-> Note: Node.js is used only for frontend asset compilation (Tailwind/Vite), not as a backend runtime.
-
----
-
-## Database Overview
-
-- Users
-- Projects
-- Tasks
-- Comments
-- Project-user pivot table
-- Activity logs
-
-The application uses Eloquent ORM relationships and follows normalized relational database design principles.
+| Layer          | Technology |
+|----------------|------------|
+| Backend        | Laravel 12, PHP 8.2 |
+| Frontend       | Blade, Alpine.js |
+| Auth           | Laravel Breeze |
+| Database       | MySQL |
+| Version Control| Git & GitHub |
+| Build Tool     | Vite, Node.js |
 
 ---
 
-## Installation & Setup
-
-### Requirements
-- PHP 8.2+
-- Composer
-- Node.js & npm (for frontend assets only)
-- MySQL or PostgreSQL
-
-extension i used
-PHP Intelephense
-
-Laravel Blade Snippets
-
-Laravel Artisan
-
-Tailwind CSS IntelliSense
-
-### Steps
-
-1. Clone the repository
-```bash
-git clone https://github.com/yourusername/taskflow-laravel.git
-cd taskflow-laravel
+## Database Schema
 
 
+- **users:** `id (PK), name, email, email_verified_at, password, role, remember_token`  
+- **projects:** `id (PK), name, description, created_by (FK → users.id)`  
+- **tasks:** `id (PK), project_id (FK → projects.id), title, status, assigned_to (FK → users.id), due_date, created_by (FK → users.id)`  
+- **activity_logs:** `id (PK), user_id (FK → users.id), project_id (FK → projects.id), task_id (FK → tasks.id), action, description, meta (JSON)`  
+- **project_user (pivot):** `project_id (FK → projects.id), user_id (FK → users.id), role, created_at, updated_at`
+
+
+---
