@@ -18,10 +18,20 @@ class ProjectController extends Controller
                 $query->where('status', '!=', 'done');
             }])->latest()->get();
         } else {
-            // Use the members relationship directly
-            $projects = $user->projects()->withCount(['tasks' => function ($query) {
+            // CHANGE THIS PART ONLY:
+            $projects = Project::where(function($query) use ($user) {
+                // Projects user created
+                $query->where('created_by', $user->id)
+                    // OR projects where user is added as member
+                    ->orWhereHas('members', function($q) use ($user) {
+                        $q->where('user_id', $user->id);
+                    });
+            })
+            ->withCount(['tasks' => function ($query) {
                 $query->where('status', '!=', 'done');
-            }])->latest()->get();
+            }])
+            ->latest()
+            ->get();
         }
         
         return view('projects.index', compact('projects'));
