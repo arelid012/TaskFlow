@@ -394,11 +394,18 @@
                                             <template x-if="canChangeStatus(log.task)">
                                                 <select @change="updateStatus(log.task.id, $event.target.value)"
                                                         class="text-sm bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                                                    <option value="" disabled selected>Change Status</option>
-                                                    <option value="todo" x-show="log.task.status !== 'todo'">To Do</option>
-                                                    <option value="doing" x-show="log.task.status !== 'doing'">Doing</option>
-                                                    <option value="done" x-show="log.task.status !== 'done'">Done</option>
+                                                    <option value="" disabled selected>
+                                                        <span x-text="'Status: ' + log.task.status.charAt(0).toUpperCase() + log.task.status.slice(1)"></span>
+                                                    </option>
+                                                    <template x-for="option in allowedNextStatuses(log.task.status)" :key="option.value">
+                                                        <option :value="option.value" x-text="option.label"></option>
+                                                    </template>
                                                 </select>
+                                            </template>
+                                            <template x-if="!canChangeStatus(log.task)">
+                                                <span class="text-xs px-2 py-1 rounded bg-gray-700 text-gray-300">
+                                                    Status: <span x-text="log.task.status.charAt(0).toUpperCase() + log.task.status.slice(1)"></span>
+                                                </span>
                                             </template>
                                             
                                             <!-- Assignment -->
