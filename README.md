@@ -39,6 +39,6 @@ This project demonstrates real-world full-stack development, backend-enforced bu
 - **activity_logs:** `id (PK), user_id (FK → users.id), project_id (FK → projects.id), task_id (FK → tasks.id), action, description, meta (JSON)`  
 - **project_user (pivot):** `project_id (FK → projects.id), user_id (FK → users.id), role, created_at, updated_at`
 
-![TaskFlow Database Schema](./images/schema.png)
+![TaskFlow Database Schema](public/images//schema.png)
 
 ---
