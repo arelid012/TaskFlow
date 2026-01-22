@@ -19,6 +19,9 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId, userRoleInProje
     newTaskAssignedTo: '',    // Add this
     newTaskStatus: 'todo',    // Add this (default value)
     hasHighlighted: false,    // Track if we've highlighted
+    showTaskForm: true, // Show form by default
+    totalTasks: 0,
+    overdueTasks: 0,
 
     init() {
         console.log('Component initialized');
@@ -51,6 +54,9 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId, userRoleInProje
         this.logs = data.data ?? [];
         this.pagination.next = data.links?.next ?? null;
         this.pagination.prev = data.links?.prev ?? null;
+
+        // Get task counts
+        await this.fetchTaskCounts();
         
         this.loading = false;
 
@@ -250,6 +256,29 @@ Alpine.data('activityLog', ({projectId, users, userRole, userId, userRoleInProje
         } catch (error) {
             console.error('Error updating due date:', error);
             alert('Failed to update due date. Please try again.');
+        }
+    },
+
+    getUserName(userId) {
+        const user = this.users.find(u => u.id == userId);
+        return user ? user.name : 'Unknown';
+    },
+
+    async fetchTaskCounts() {
+        try {
+            const response = await fetch(`/projects/${this.projectId}/tasks`);
+            const tasks = await response.json();
+            
+            this.totalTasks = tasks.length;
+            this.overdueTasks = tasks.filter(task => {
+                if (!task.due_date || task.status === 'done') return false;
+                const dueDate = new Date(task.due_date);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                return dueDate < today;
+            }).length;
+        } catch (error) {
+            console.error('Error fetching task counts:', error);
         }
     },
 
