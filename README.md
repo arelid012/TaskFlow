@@ -16,7 +16,7 @@ This project demonstrates real-world full-stack development, backend-enforced bu
 - **Frontend UX:** Reactive activity feed, inline editing, loading states, color-coded action badges, permission-aware UI  
 
 ---
-
+<div align="center">
 ## 🛠 Tech Stack
 
 | Layer          | Technology |
@@ -27,6 +27,7 @@ This project demonstrates real-world full-stack development, backend-enforced bu
 | Database       | MySQL |
 | Version Control| Git & GitHub |
 | Build Tool     | Vite, Node.js |
+</div>
 
 ---
 
@@ -57,3 +58,36 @@ activity_logs:
 project_user (pivot):
   project_id (FK → projects.id), user_id (FK → users.id), 
   role, created_at, updated_at
+
+```
+### **Project Pictures:**
+
+<div align="center">
+  <img src="public/images/dashboard.png" width="600" alt="TaskFlow Database Schema">
+  <p><em>Dashboard Page</em></p>
+</div>
+
+<div align="center">
+  <img src="public/images/dashboard2.png" width="600" alt="TaskFlow Database Schema">
+  <p><em>Cont. Dashboard Page</em></p>
+</div>
+
+<div align="center">
+  <img src="public/images/project.png" width="600" alt="TaskFlow Database Schema">
+  <p><em>Project Page</em></p>
+</div>
+
+<div align="center">
+  <img src="public/images/activity.png" width="600" alt="TaskFlow Database Schema">
+  <p><em>Activity Time Line Page</em></p>
+</div>
+
+<div align="center">
+  <img src="public/images/activity2.png" width="600" alt="TaskFlow Database Schema">
+  <p><em>Cont. Activity Time Line Page</em></p>
+</div>
+
+<div align="center">
+  <img src="public/images/tasks.png" width="600" alt="TaskFlow Database Schema">
+  <p><em>Tasks Page</em></p>
+</div>
