@@ -1,11 +1,33 @@
-@import 'tailwindcss';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
-@source '../**/*.blade.php';
-@source '../**/*.js';
+/* Add this to the END of your app.css file */
 
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+/* Highlight effect for tasks */
+.highlight-task {
+    animation: highlight-pulse 3s ease-in-out;
+    position: relative;
+}
+
+.highlight-task::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: #6366f1;
+    border-radius: 3px;
+}
+
+@keyframes highlight-pulse {
+    0% { background-color: rgba(99, 102, 241, 0.1); }
+    50% { background-color: rgba(99, 102, 241, 0.2); }
+    100% { background-color: transparent; }
+}
+
+/* Hover background color for dashboard */
+.hover\:bg-gray-750:hover {
+    background-color: rgba(55, 65, 81, 0.5);
 }

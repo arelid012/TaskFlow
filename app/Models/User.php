@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+// Remove the comment and implement MustVerifyEmail
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Notifications\CustomVerifyEmail;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
@@ -21,6 +24,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
     ];
 
     /**
@@ -45,4 +49,38 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    // ✅ Role helpers
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isManager(): bool
+    {
+        return $this->role === 'manager';
+    }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class, 'created_by');
+    }
+
+    public function assignedTasks()
+    {
+        return $this->hasMany(Task::class, 'assigned_to');
+    }
+
+    public function sendEmailVerificationNotification()
+    {
+        $this->notify(new CustomVerifyEmail);
+    }
+
+    // public function memberProjects()
+    // {
+    //     // Assuming you have a project_members table
+    //     return $this->belongsToMany(Project::class, 'project_members', 'user_id', 'project_id');
+    // }
+
+    
 }
