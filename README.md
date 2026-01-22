@@ -6,7 +6,7 @@ This project demonstrates real-world full-stack development, backend-enforced bu
 
 ---
 
-## Features
+## ✨ Features
 
 - **Authentication & Roles:** Admin, Manager, User; secure role-based access via Laravel Policies  
 - **Project Management:** CRUD projects, ownership & member roles, secure visibility rules  
@@ -17,7 +17,7 @@ This project demonstrates real-world full-stack development, backend-enforced bu
 
 ---
 
-## Tech Stack
+## 🛠 Tech Stack
 
 | Layer          | Technology |
 |----------------|------------|
@@ -30,15 +30,30 @@ This project demonstrates real-world full-stack development, backend-enforced bu
 
 ---
 
-## Database Schema
+## 🗄️ Database Schema
 
+<div align="center">
+  <img src="public/images/taskflow_database_schema.png" width="600" alt="TaskFlow Database Schema">
+  <p><em>Database relationships and table structure</em></p>
+</div>
 
-- **users:** `id (PK), name, email, email_verified_at, password, role, remember_token`  
-- **projects:** `id (PK), name, description, created_by (FK → users.id)`  
-- **tasks:** `id (PK), project_id (FK → projects.id), title, status, assigned_to (FK → users.id), due_date, created_by (FK → users.id)`  
-- **activity_logs:** `id (PK), user_id (FK → users.id), project_id (FK → projects.id), task_id (FK → tasks.id), action, description, meta (JSON)`  
-- **project_user (pivot):** `project_id (FK → projects.id), user_id (FK → users.id), role, created_at, updated_at`
+### **Core Tables:**
 
-![TaskFlow Database Schema](public/images/taskflow_database_schema.png) 
+```sql
+users:
+  id (PK), name, email, email_verified_at, password, role, remember_token
 
----
+projects:
+  id (PK), name, description, created_by (FK → users.id)
+
+tasks:
+  id (PK), project_id (FK → projects.id), title, status, 
+  assigned_to (FK → users.id), due_date, created_by (FK → users.id)
+
+activity_logs:
+  id (PK), user_id (FK → users.id), project_id (FK → projects.id),
+  task_id (FK → tasks.id), action, description, meta (JSON)
+
+project_user (pivot):
+  project_id (FK → projects.id), user_id (FK → users.id), 
+  role, created_at, updated_at
